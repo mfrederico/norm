@@ -99,12 +99,20 @@ class Norm
 		foreach($objArrays as $obj2)
 		{
 			$tmp = $this->store($obj2);
-			$Q="INSERT INTO {$tableName} SET `{$tableName}_{$var1}`='{$obj1->id}', `{$tableName}_{$var2}`='{$obj2->id}'";
-			$data = self::$link->prepare($Q);
-			$data->execute();
+			if (isset($obj1->id) && isset($obj2->id))
+			{
+				$Q="INSERT INTO {$tableName} SET `{$tableName}_{$var1}`='{$obj1->id}', `{$tableName}_{$var2}`='{$obj2->id}'";
+				$data = self::$link->prepare($Q);
+				$data->execute();
+			}
+			else 
+			{
+				user_error('Trying to tie objects that have no id - cannot save to database!',E_USER_ERROR);
+			}
 		}
 	}
 
+	// push array data into my object
 	public function stuff($array,$obj,$fields = '')
 	{
 		// Get this objects name
@@ -122,6 +130,33 @@ class Norm
 		return($this);
 	}
 
+	public function del($obj)
+	{
+		//go through each populated obj var and peform multi where clauses against it
+		$tableName	= get_class($obj);
+		$objVars	= get_object_vars($obj);
+
+		$ts		= $this->getTableSchema($tableName);
+
+		// Delete all my relationships
+		$tables = $this->getRelatedTables($tableName);
+		if (!empty($tables))
+		{
+			foreach($tables as $joinTable=>$dataTable)
+			{
+				$Q = "DELETE FROM {$joinTable} WHERE {$joinTable}_{$dataTable}_id='{$obj->id}'";
+
+				$data = self::$link->prepare($Q);
+				$data->execute();
+			}
+		}
+
+		$Q="DELETE FROM {$tableName} WHERE {$tableName}_id='{$obj->id}'";
+		$data = self::$link->prepare($Q);
+		$data->execute();
+		return($this);
+	}
+
 	public function get($obj,$cols = '*',$getSet = 0)
 	{
 		$cols = explode(',',$cols);
@@ -135,7 +170,7 @@ class Norm
 
 		// Build my join (will have to do this for all DSNs .. :-/
 		// this is 1 to 1 tie 
-		/* FAIL
+		/* THIS NEEDS WORK
 		foreach($ts as $k=>$v)
 		{
 			list($table,$col) = explode('_',$v);
@@ -149,7 +184,7 @@ class Norm
 		// This is 1 to many tie
 		if ($getSet)
 		{
-			$tables = $this->getTableHeirarchy($tableName);
+			$tables = $this->getRelatedTables($tableName);
 			if (!empty($tables))
 			{
 				foreach($tables as $joinTable=>$dataTable)
@@ -193,7 +228,7 @@ class Norm
 			$schema->execute();
 		}
 
-		if ($obj->id) 
+		if (isset($obj->id))
 			$Q="UPDATE `{$tableName}` SET";
 		else
 			$Q="INSERT INTO `{$tableName}` SET";
@@ -207,7 +242,7 @@ class Norm
 		$storage = self::$link->prepare($Q);
 		$storage->execute();
 
-		if (!$obj->id)
+		if (!isset($obj->id))
 		{
 			$lid = self::$link->lastInsertId();
 			if ($lid) $obj->id = $lid;
@@ -228,8 +263,9 @@ class Norm
 		return($dsna);
 	}
 
-	private function getTableHeirarchy($table)
+	private function getRelatedTables($table)
 	{
+		$leftJoin = array();
 		$i = 0;
 		$t = $this->getTableList();
 
@@ -237,7 +273,7 @@ class Norm
 		{
 			foreach($t as $k=>$v)
 			{
-				list($tr,$tl) = explode('_',$v);
+				@list($tr,$tl) = explode('_',$v);
 				if (strlen($tl)) $leftJoin[$tl] = $v;
 			}
 			$leftJoin = array_flip($leftJoin);
@@ -263,7 +299,7 @@ class Norm
 	private function getTableSchema($tableName)
 	{
 		if (!strlen($tableName)) return(false);
-		if (!count($this->tableSchema[$tableName]))
+		if (empty($this->tableSchema[$tableName]))
 		{
 			$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
 			$dbSchema = self::$link->prepare($Q);
@@ -320,9 +356,10 @@ class Norm
 	private function buildSet($tableName,$objVars)
 	{
 		$Q = null;
-		$dbSchema	= $this->getTableSchema($tableName);
+		$dbSchema = $this->getTableSchema($tableName);
+
 		// check if we need to alter tables
-		if (is_array($dbSchema))
+		if (!empty($dbSchema))
 		{
 			$v = array_keys($objVars);
 

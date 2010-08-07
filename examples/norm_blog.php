@@ -2,6 +2,9 @@
 ob_start();
 session_start();
 
+// So I can be a bit sloppy in my coding... 
+error_reporting(E_ALL & ~E_NOTICE);
+
 include('../norm.php');
 include('../../norm_db_config.php');
 /* I like Norm, Norm is easy and wears a tie. :-) */
@@ -63,10 +66,20 @@ if (isset($_REQUEST['user']))
 	if (isset($user[0])) $_SESSION['user'] = $user[0];
 }
 
+
+if (isset($_REQUEST['del']))
+{
+	print_r($_REQUEST['del']);
+	$p->id = $_REQUEST['del'];
+	$w->del($p);
+	die();
+}
+
 $style = <<<__STYLE__
 <style>
-	body{ font-family:arial;}
-	fieldset { background: #EFEFEF;width:600px; }
+	.ctrls		{ font-size:11px;  }
+	body		{ font-family:arial;}
+	fieldset	{ background: #EFEFEF;width:600px; height:150px; }
 </style>
 __STYLE__;
 
@@ -86,9 +99,9 @@ $postForm = <<<__EOT__
 <fieldset>
 <form action="{$_SERVER['SCRIPT_NAME']}" method="post">
 <input type="hidden" name="post">
-Title: <input type="text" name="post[Post_title]">	<br />
+Title: <input type="text" name="post[Post_title]" size="50" style="width:90%">	<br />
 Body:<br />
-<textarea name="post[Post_body]" rows="5" cols="80"></textarea><br />
+<textarea name="post[Post_body]" rows="5" style="width:100%"></textarea><br />
 <input type="submit">
 </fieldset>
 __EOT__;
@@ -98,18 +111,22 @@ if (!isset($_SESSION['user']['User_id']))	print $loginForm;
 else 										print $postForm;
 
 // So my user has POSTS .. so lets get everybody's posts
-$posts = $w->get($u,'User_login,Post_title,Post_body,Post_updated',NORM_FULL);
+$posts = $w->get($u,'Post_id,User_login,Post_title,Post_body,Post_updated',NORM_FULL);
+$controls .= "<a class=\"ctrls\" href=\"{$_SERVER['PHP_SELF']}?cmt={$post['Post_id']}\">Comment</a>";
 
 if (!empty($posts))
 {
 	print "<h1>Things posted to Norm</h1>";
 	foreach($posts as $idx=>$post)
 	{
-	print <<<__EOT__
+		if ($post['User_login'] == @$_SESSION['user']['User_login']) $admin = " | <a class=\"ctrls\" href=\"{$_SERVER['PHP_SELF']}?del={$post['Post_id']}\">X</a>";
+
+		print <<<__EOT__
 	<fieldset>
 		<legend>{$post['Post_title']}</legend>
-		{$post['Post_body']}<br/ >
+		{$controls}{$admin}
 		<p style="font-size:11px;">Posted by: {$post['User_login']} on {$post['Post_updated']}</p>
+		{$post['Post_body']}<br/ >
 	</fieldset>
 __EOT__;
 	}
