@@ -1,0 +1,7 @@
+*NORM
+
+// n.ot an orm.
+- initial release 
+- sorry, forgot to add a "delete" method - will do shortly! (psshht .. who needs to delete stuff ANYWAY ..)
+- don't have 1:1 working at the moment, but 1:n works just swell.
+- Check out the examples!
