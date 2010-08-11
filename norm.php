@@ -3,7 +3,7 @@
 //-------------------------------------
 // Norm - Not an ORM                 
 //-------------------------------------
-// v 1.0 - Major Release
+// v 1.1
 // Author  : Matthew Frederico          
 // License : GPL or whatever works for you      
 //-------------------------------------
