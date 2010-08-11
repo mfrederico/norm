@@ -1,10 +1,4 @@
 *NORM
-// 1.1
-- Lots of fixes .. AKA using INNER join
-- Lowercase tables because mysql on WINDOWS likes to do that.
-- updated blog to use 1.1
-- norm blog example allows for comments
-
 // Major release 1.0
 - Added ability to add multi-dimensional complex objects
 - Added delete function

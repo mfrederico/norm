@@ -10,6 +10,7 @@ include('../../norm_db_config.php');
 /* I like Norm, Norm is easy and wears a tie. :-) */
 $w = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
 
+
 class User
 {
 	var $login;
