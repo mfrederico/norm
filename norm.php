@@ -3,7 +3,7 @@
 //-------------------------------------
 // Norm - Not an ORM                 
 //-------------------------------------
-// v .01 - Initial Release 08/06/2010
+// v 1.0 - Major Release
 // Author  : Matthew Frederico          
 // License : GPL or whatever works for you      
 //-------------------------------------
@@ -19,6 +19,8 @@ class Norm
 
 	var $tableList		= array();
 	var $tableSchema	= array();
+	var $relatedTables	= array();
+	var $maps			= array();
 
 	private static $link = null;
 	
@@ -46,6 +48,7 @@ class Norm
 
 		// This fails with current implementation .. 
 		// Default behavior to tie many if we have an array of objects
+		/*
 		if (is_array($obj2))  return($this->tieMany($obj1,$obj2,$opt));
 		
 		$t1	= get_class($obj1);
@@ -60,6 +63,12 @@ class Norm
 		if (!strlen($opt)) $opt = "{$t1}.id={$t2}.id";
 
 		return($this);
+		*/
+	}
+
+	private function getClass($obj)
+	{
+		return(strtolower(get_class($obj)));
 	}
 
 	public function tieMany($obj1,$objArrays = array(),$opt='')
@@ -71,31 +80,36 @@ class Norm
 			$objArrays = $nobj;
 		}
 
-		$t1	= get_class($obj1);
-		$t2 = get_class($objArrays[0]);
+		$t1	= self::getClass($obj1);
 
-		$tableName = "{$t1}_{$t2}";
-
-		$var1 = "{$t1}_id";
-		$var2 = "{$t2}_id";
-
-		$table[$var1] = 0;
-		$table[$var2] = 0;
-
-
-		// Create the structure of the lookup table
-		$Q = $this->buildSet($tableName,$table);
-		if (strlen($Q))
+		// Build the lookup table
+		foreach($objArrays as $idx=>$nextObj)
 		{
-			$data = self::$link->prepare($Q);
-			$data->execute();
+			$t2 = self::getClass($nextObj);
 
-			$Q = "ALTER TABLE {$tableName} ADD unique index({$tableName}_{$var1},{$tableName}_{$var2})";
-			$data = self::$link->prepare($Q);
-			$data->execute();
+			$tableName = "{$t1}_{$t2}";
+
+			$var1 = "{$t1}_id";
+			$var2 = "{$t2}_id";
+
+			$table[$var1] = 0;
+			$table[$var2] = 0;
+
+			// Create the structure of the lookup table
+			$Q = $this->buildSet($tableName,$table);
+			if (strlen($Q))
+			{
+				$data = self::$link->prepare($Q);
+				$data->execute();
+
+				// Create unique index for this lookup
+				$Q = "ALTER TABLE {$tableName} ADD unique index({$tableName}_{$var1},{$tableName}_{$var2})";
+				$data = self::$link->prepare($Q);
+				$data->execute();
+			}
 		}
 
-		// Now store the data into the lookup table
+		// Now store the data into the lookup table for each object
 		foreach($objArrays as $obj2)
 		{
 			$tmp = $this->store($obj2);
@@ -107,16 +121,16 @@ class Norm
 			}
 			else 
 			{
-				user_error('Trying to tie objects that have no id - cannot save to database!',E_USER_ERROR);
+				trigger_error('Trying to tie objects that have no id '.self::getClass($obj1).' -> '.self::getClass($obj2).' - cannot save to database!',E_USER_NOTICE);
 			}
 		}
 	}
 
-	// push array data into my object
+	// push / STUFF array KVP data into my object
 	public function stuff($array,$obj,$fields = '')
 	{
 		// Get this objects name
-		$n = get_class($obj);
+		$n = self::getClass($obj);
 		// convert me to an array!	
 		$fields = explode(',',$fields);
 		if (!empty($array))
@@ -133,16 +147,16 @@ class Norm
 	public function del($obj)
 	{
 		//go through each populated obj var and peform multi where clauses against it
-		$tableName	= get_class($obj);
+		$tableName	= self::getClass($obj);
 		$objVars	= get_object_vars($obj);
 
 		$ts		= $this->getTableSchema($tableName);
 
 		// Delete all my relationships
-		$tables = $this->getRelatedTables($tableName);
-		if (!empty($tables))
+		$this->getRelatedTables($tableName);
+		if (!empty($this->relatedTables))
 		{
-			foreach($tables as $joinTable=>$dataTable)
+			foreach($this->relatedTables as $joinTable=>$dataTable)
 			{
 				$Q = "DELETE FROM {$joinTable} WHERE {$joinTable}_{$dataTable}_id='{$obj->id}'";
 
@@ -157,39 +171,25 @@ class Norm
 		return($this);
 	}
 
-	public function get($obj,$cols = '*',$getSet = 0)
+	public function get($fromObj,$cols = '*',$whereObjs = array(),$getSet = 0)
 	{
-		$cols = explode(',',$cols);
+		$getCols = explode(',',$cols);
 		
 		//go through each populated obj var and peform multi where clauses against it
-		$tableName	= get_class($obj);
-		$objVars	= get_object_vars($obj);
-		$ts = $this->getTableSchema($tableName);
+		$tableName	= self::getClass($fromObj);
+		$objVars	= get_object_vars($fromObj);
 
-		$Q="SELECT ".join(',',$cols)." FROM {$tableName}";
 
-		// Build my join (will have to do this for all DSNs .. :-/
-		// this is 1 to 1 tie 
-		/* THIS NEEDS WORK
-		foreach($ts as $k=>$v)
-		{
-			list($table,$col) = explode('_',$v);
-			if ($table != $tableName)
-			{
-				if ($this->getTableSchema($table))
-					$Q .= " LEFT JOIN {$table} ON({$tableName}.{$v}={$table}.{$col})";
-			}
-		}
-		*/
-		// This is 1 to many tie
+		$Q="SELECT ".join(',',$getCols)." FROM {$tableName}";
+
 		if ($getSet)
 		{
-			$tables = $this->getRelatedTables($tableName);
-			if (!empty($tables))
+			$joins = $this->reduceTables($tableName);
+			if (!empty($joins))
 			{
-				foreach($tables as $joinTable=>$dataTable)
+				foreach($joins as $joinTable=>$qrys)
 				{
-					$Q .= ",{$joinTable} LEFT JOIN {$dataTable} ON ({$joinTable}_{$dataTable}_id={$dataTable}_id)";
+					foreach($qrys as $qry) $Q .= ",{$qry['mapTo']} LEFT JOIN {$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_id={$qry['mapTo']}_id)";
 				}
 			}
 		}
@@ -197,14 +197,16 @@ class Norm
 		// build the where clause
 		$Q .= " WHERE ";
 		
+		
 		// This develops our where clause
-		if (!empty($objVars))
+		if (!empty($objVars)) foreach($objVars as $k=>$v) if (!empty($v)) $Q .= "{$tableName}_{$k}='{$v}' AND ";
+
+		if (is_array($whereObjs)) foreach($whereObjs as $whereObj) $whereVars[self::getClass($whereObj)] = get_object_vars($whereObj);
+		if (!empty($whereVars)) foreach($whereVars as $k=>$v) 
 		{
-			foreach($objVars as $k=>$v)
-			{
-				if (!empty($v)) $Q .= "{$tableName}_{$k}='{$v}' AND ";
-			}
+			foreach($v as $kn=>$vl) if (!empty($vl)) $Q .= "{$k}_{$kn}='{$vl}' AND ";
 		}
+
 		$Q .= '1';
 
 		$data = self::$link->prepare($Q);
@@ -212,13 +214,111 @@ class Norm
 
 		$data->setFetchMode(PDO::FETCH_ASSOC);
 
-		return($data->fetchAll());	
+		return(self::condense($data->fetchAll()));	
+	}
+
+
+	//  If I don't reindex, then it will keep id as the index of the array
+	public function condense($dataset,$reindex = 1)
+	{
+		if (empty($dataset)) 
+		{
+			trigger_error('Results Empty',E_USER_NOTICE);
+			return(null);
+		}
+		// Build my dataset KVP
+		foreach($dataset as $idx=>$data)
+		{
+			foreach($data as $k=>$values)
+			{
+				$pointers	= explode('_',$k);
+				$valVar		= $pointers[count($pointers)-1];
+				$keyVar		= $pointers[count($pointers)-2];
+				$attrs[$keyVar][$idx][$valVar] = $values;
+
+				if (count($pointers) == 4) 
+				{
+					if ($pointers[0] == $pointers[2]) $lastId = $values;
+					if ($pointers[0] != $pointers[2]) $map[$pointers[0]][$lastId][$pointers[2]][$values] = $pointers[3];
+				}
+			}
+		}
+
+		// Now condense down to array of tables / objects
+		foreach($attrs as $table=>$array)
+		{
+			foreach($array as $idx=>$v)
+				foreach($v as $col=>$val)
+				{
+					$final[$table][$v['id']][$col] = $val;
+				}
+		}
+
+		// put array together based on mapping
+		if (!empty($map))
+		{
+			foreach($map as $root=>$array)
+			{
+				foreach($array as $rootIdx=>$dataField)
+				{
+					$newFinal[$root][$rootIdx] = array();
+					foreach($dataField as $key=>$id)
+					{
+						foreach($id as $idx=>$colname)
+						{
+							if ($reindex) $final[$root][$rootIdx][$key][] = $final[$key][$idx];
+							$final[$root][$rootIdx][$key][$idx] = $final[$key][$idx];
+						}
+					}
+				}
+			}
+			// get rid of grafted items
+			foreach(array_keys($final) as $k)
+			{
+				if ($k != $root) unset($final[$k]);
+			}
+		}
+
+		return($final);
 	}
 
 	public function store($obj)
 	{
-		$tableName	= get_class($obj);
+		$tableName	= self::getClass($obj);
+		if (!strlen($tableName)) 
+		{
+			trigger_error('Cannot store object without name!',E_USER_NOTICE);
+			return(false);
+		}
 		$objVars	= get_object_vars($obj);
+		$tieThese	= array();
+
+		if (!empty($objVars))
+		{
+			foreach($objVars as $k=>$val)
+			{
+				// perhaps change this to mean 1:1?
+				// Allows me to store just direct object
+				if (is_object($objVars[$k]))
+				{
+					$this->store($obj->$k);
+					$tieThese[] = array($obj,$obj->$k);
+					unset($objVars[$k]);
+					unset($obj->$k);
+				}
+				// perhaps change this to mean 1:many?
+				// Allows me to store an array of objects
+				else if (is_array($objVars[$k]))
+				{
+					foreach($objVars[$k] as $storeMe)
+					{
+						$tieThese[] = array($obj,$storeMe);
+					}
+					unset($objVars[$k]);
+					unset($obj->$k);
+				}
+			}
+		}
 
 		// Auto calibrate the database
 		$set = self::buildSet($tableName,$objVars);
@@ -233,11 +333,14 @@ class Norm
 		else
 			$Q="INSERT INTO `{$tableName}` SET";
 
-		foreach($objVars as $k=>$v)
+		if (!empty($objVars))
 		{
-			$Q.=" `{$tableName}_{$k}`='{$v}',";
+			foreach($objVars as $k=>$v)
+			{
+				$Q.=" `{$tableName}_{$k}`='{$v}',";
+			}
+			$Q = rtrim($Q,',');
 		}
-		$Q = rtrim($Q,',');
 
 		$storage = self::$link->prepare($Q);
 		$storage->execute();
@@ -247,6 +350,13 @@ class Norm
 			$lid = self::$link->lastInsertId();
 			if ($lid) $obj->id = $lid;
 		}
+
+		if (!empty($tieThese)) foreach ($tieThese as $objs) 
+		{
+			if (is_object($objs[0]) && is_object($objs[1]))
+				$this->tie($objs[0],$objs[1]);
+		}
+		if (!empty($objArrays)) $this->tie($obj,$objArrays);
 
 		return($this);
 	}
@@ -263,22 +373,58 @@ class Norm
 		return($dsna);
 	}
 
+	private function getMaps()
+	{
+		if (!empty($this->maps)) return($this->maps);
+		$tableList = $this->getTableList();
+		foreach($tableList as $tbl)
+		{
+			@list($main,$has) = explode('_',$tbl);
+			if (!empty($has))
+			{
+				$this->maps[$main][] = $has;
+			}
+		}
+		return($this->maps);
+	}
+
+	public function reduceTables($obj)
+	{
+		if (is_object($obj)) $table = self::getClass($table);
+		else $table = $obj;
+		$this->getMaps();
+
+		if (!empty($this->maps[$table]))
+		{
+			foreach($this->maps[$table] as $idx=>$mapToTable)
+			{
+				if (isset($this->maps[$mapToTable])) $Q = $this->reduceTables($mapToTable);
+				$Q[$table][] = array('mapTo'=>$mapToTable,'table'=>"{$table}");
+			}
+			return($Q);
+		}
+		return(false);
+	}
+
 	private function getRelatedTables($table)
 	{
-		$leftJoin = array();
-		$i = 0;
-		$t = $this->getTableList();
+		$related	= array();
+		$i			= 0;
+		$tableList	= $this->getTableList();
 
-		if (!empty($t))
+		if (!empty($tableList))
 		{
-			foreach($t as $k=>$v)
+			// get initial lookp tables
+			foreach($tableList as $idx=>$tbl)
 			{
-				@list($tr,$tl) = explode('_',$v);
-				if (strlen($tl)) $leftJoin[$tl] = $v;
+				@list($thisObj,$has) = explode('_',$tbl);
+				if (in_array($has,$this->getTablelist())) $related[$thisObj][$has] = 1;
 			}
-			$leftJoin = array_flip($leftJoin);
 		}
-		return($leftJoin);
+		$this->relatedTables = $related;
+		
+		if (!empty($this->relatedTables[$table])) return($this->relatedTables[$table]);
+		else return(null);
 	}
 
 	private function getTableList()
@@ -293,6 +439,7 @@ class Norm
 			if (!count($ts)) $ts = false;
 			$this->tableList  = $ts;
 		}
+		//asort($this->tableList);
 		return($this->tableList);
 	}
 	
@@ -345,7 +492,7 @@ class Norm
 		else if (is_string($v) && strlen($v) > 255)		$Q .= "`{$t}_{$k}` text default(''),";
 		else if (is_object($v)) 						
 		{
-			$tableName	= get_class($v);
+			$tableName	= self::getClass($v);
 														$Q .= "`{$tableName}_{$k}` int unsigned not null,";
 		}
 		else $Q .= "`{$t}_{$k}` varchar(255) not null,"; // Kinda generic type / catch all.
@@ -355,6 +502,8 @@ class Norm
 
 	private function buildSet($tableName,$objVars)
 	{
+		if (!strlen($tableName)) return(false);
+
 		$Q = null;
 		$dbSchema = $this->getTableSchema($tableName);
 

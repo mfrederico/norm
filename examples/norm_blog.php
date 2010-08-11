@@ -69,10 +69,8 @@ if (isset($_REQUEST['user']))
 
 if (isset($_REQUEST['del']))
 {
-	print_r($_REQUEST['del']);
 	$p->id = $_REQUEST['del'];
 	$w->del($p);
-	die();
 }
 
 $style = <<<__STYLE__
