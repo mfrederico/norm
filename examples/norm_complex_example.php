@@ -1,5 +1,6 @@
 <?php 
-include('norm.class.php');
+include('../norm.class.php');
+include('../../norm_db_config.php');
 
 // A more complex NORM example
 
@@ -25,7 +26,6 @@ class cuePoints
 	var $disabled	= 0;
 }
 
-include('norm_db_config.php');
 
 $N = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
 
