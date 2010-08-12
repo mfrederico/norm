@@ -1,30 +1,113 @@
 <?php 
 
-//-------------------------------------
+//============================================================+
 // Norm - Not an ORM                 
 //-------------------------------------
-// v 1.1
-// Author  : Matthew Frederico          
-// License : GPL or whatever works for you      
+// Version          : 1.1
+// Author           : Matthew Frederico          
+// License          : Whichever GPL works best for you
 //-------------------------------------
+// Copyright (c) 2010 Matthew Frederico
+// 
+// NORM is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// NORM is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with NORM.  If not, see <http://www.gnu.org/licenses/>.
+//
+// See LICENSE.TXT file for more information.
+// -------------------------------------------------------------------
+// Description      : Dynamic storage/retrieval of objects in a database
+// Main features    :
+// * Single class file
+// * Object properties can be dynamically allocated
+// * You don't have to create the database tables
+// * 3 Main functions - store,get,del.  Norm takes care of the rest
+// * Automatic table creation 
 
-define('NORM_DEFAULT',0);
-define('NORM_FULL',1);
-
+/**
+ * Php class for storing and retrieving PHP objects in a database
+ * 3 main public methods - store,get,del
+ * Creates your database tables on the fly as needed
+ * Does it's best to maintian hierarchy
+ * @abstract simple PHP class for storing and retrieving PHP objects in a database without touching SQL
+ * @author Matthew Frederico
+ * @link http://www.ultrize.com/norm/
+ * @license http://www.gnu.org/copyleft/lesser.html LGPL
+ * @version 1.1
+ */
 class Norm
 {
-	var $user = '';
-	var $pass = '';
-	var $dsna = '';
+	/**
+	 * @var DEFAULT how to return data 
+	 * @description only returns the parent object's data
+	 */
+	const SINGLE	= 0;
+	const FULL		= 1;
 
-	var $tableList		= array();
-	var $tableSchema	= array();
-	var $relatedTables	= array();
-	var $maps			= array();
+	/**
+	 * @var user The user name used to authenticate into the database (if applicable)
+	 * @access protected
+	 */
+	protected $user = '';
 
+	/**
+	 * @var pass The password used to authenticate into the database (if applicable)
+	 * @access protected
+	 */
+	protected $pass = '';
+
+	/**
+	 * @var dsna This is the DSN string e.g. mysql:host=localhost;dbname=database
+	 * @access protected
+	 */
+	protected $dsna = '';
+
+	/**
+	 * @var tableList This is the internal table list pointer for NORM
+	 * @access protected
+	 */
+	protected $tableList		= array();
+
+	/**
+	 * @var tableSchema This is the internal table schema for NORM
+	 * @access protected
+	 */
+	protected $tableSchema	= array();
+
+	/**
+	 * @var relatedTables Keeps a hierchical relationship of tables / objects
+	 * @access protected
+	 */
+	protected $relatedTables	= array();
+
+	/**
+	 * @var maps creates the mapping for all created objects
+	 * @access protected
+	 */
+	protected $maps			= array();
+
+	/**
+	 * @var link This is the actual PDO link to the database
+	 * @access protected
+	 */
 	private static $link = null;
 	
 
+	/**
+ 	 * @param string $dsn the database dsn connection
+	 * @param string $user username to connect to the database
+	 * @param string $pass password to connect to the database
+	 * @param string $attr extra PDO attributes passable
+	 * @access public 
+	 */
 	public function __construct($dsn,$user = null,$pass = null,$attr = null) 
 	{
 		$this->dsna = self::parseDsn($dsn);
@@ -41,7 +124,14 @@ class Norm
         return $this;
     }
 
-	// think: JOIN or attach or associate or something .. 
+	/**
+	 * Think: my $iceCream_obj1 has "N" $flavors_obj2
+     * for now, just references tieMany
+	 * @param object $obj1 this is the parent object
+	 * @param object $obj2 this is the object that the parent will 
+	 * @access public
+	 * @see tieMany() store()
+	 */
 	public function tie($obj1,$obj2,$opt='')
 	{
 		return($this->tieMany($obj1,$obj2,$opt));
@@ -66,11 +156,14 @@ class Norm
 		*/
 	}
 
-	private function getClass($obj)
-	{
-		return(strtolower(get_class($obj)));
-	}
 
+	/**
+	 * Ties an array of objects together
+	 * @param object $obj1 this is the parent object
+	 * @param array $objArrays this is the array of objects 
+	 * @access public
+	 * @see tie()
+	 */
 	public function tieMany($obj1,$objArrays = array(),$opt='')
 	{
 		// Make sure we have an array of objects
@@ -126,7 +219,17 @@ class Norm
 		}
 	}
 
-	// push / STUFF array KVP data into my object
+	/**
+	 * pushes array key=>value pairs of data into my object, 
+	 * creating new object vars (e.g. $obj->key = value) where necessary.
+     * great for stuffing objects with data from form fields:<Br />
+     * <code>Norm::stuff($_REQUEST['user'],$user,'id,login,password');</code>
+	 * @param array $array array containing key=>value pairs
+	 * @param array $obj object to "stuff" into
+	 * @param string $fields a csv of fieldnames to "stuff" into the object
+	 * @access public
+	 * @see store() tie()
+	 */
 	public function stuff($array,$obj,$fields = '')
 	{
 		// Get this objects name
@@ -144,6 +247,13 @@ class Norm
 		return($this);
 	}
 
+	/**
+	 * Deletes an object hierarchy from the database - Norm does it's best to 
+	 * delete all references to this object as well.
+	 * @param object $obj This is the object to delete.  
+	 * @access public
+	 * @see get()
+	 */
 	public function del($obj)
 	{
 		//go through each populated obj var and peform multi where clauses against it
@@ -169,18 +279,23 @@ class Norm
 		return($this);
 	}
 
-	public function get($fromObj,$cols = '*',$whereObjs = array(),$getSet = 0)
+	/**
+	 * Returns an object hierarchy from the database - Norm does it's best to 
+	 * return all references to this object as well.
+	 * @param object $fromObj This is the main object to return
+	 * @param string $cols CSV of column names - in the format "classname_column1,classname_column2 .. "
+	 * @param array $whereObjs array of objects to apply to WHERE clause.  Norm will use any fields that are populated in these objects as part of the where clause.  E.g.: <br/><code>$user->id=1<br/>$auth->level=1<br/>Norm::get($user,'user_name,user_pass',$auth);
+	 * @param bool $getSet Whether or not to return the ENTIRE hierarchical structure
+	 * @access public
+     * @see del() reduceTables() condense()
+	 */
+	public function get($fromObj,$cols = '*',$whereObjs = array(),$getSet = 1)
 	{
 		$cols=strtolower($cols);
 		$getCols = explode(',',$cols);
 		
-		//go through each populated obj var and peform multi where clauses against it
 		$tableName	= self::getClass($fromObj);
 		$objVars	= get_object_vars($fromObj);
-
-/*
-$Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_titles_id=titles_id) INNER JOIN movielist ON(movielist_id=titles_movielist_movielist_id) INNER JOIN movielist_cuepoints ON(movielist_cuepoints_movielist_id=titles_movielist_movielist_id) INNER JOIN cuepoints ON(movielist_cuepoints_cuepoints_id=cuepoints_id) WHERE titles_id=1";
-*/
 
 		$Q="SELECT ".join(',',$getCols)." FROM {$tableName}";
 
@@ -201,10 +316,15 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		}
 	
 		// This develops our WHERE clause
-		if (!empty($objVars)) foreach($objVars as $k=>$v) if (!empty($v)) $WHERE .= "{$tableName}_{$k}='{$v}' ";
+		if (!empty($objVars)) foreach($objVars as $k=>$v) 
+			if (!empty($v))
+			{
+				if (strlen($WHERE)) $WHERE .= " AND ";
+				$WHERE .= "{$tableName}_{$k}='{$v}' ";
+			}
 
 		if (is_array($whereObjs)) foreach($whereObjs as $whereObj) $whereVars[self::getClass($whereObj)] = get_object_vars($whereObj);
-		// This builds the AND clause	
+		// This builds any extra AND clauses
 		if (!empty($whereVars)) foreach($whereVars as $k=>$v) 
 		{
 			foreach($v as $kn=>$vl) 
@@ -226,69 +346,13 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		return(self::condense($data->fetchAll(),$tableName));	
 	}
 
-
-	//  If I don't reindex, then it will keep id as the index of the array
-	public function condense($dataset,$tableName,$reindex = 1)
-	{
-		if (empty($dataset)) 
-		{
-			trigger_error('Results Empty',E_USER_NOTICE);
-			return(null);
-		}
-		// Build my dataset KVP
-		foreach($dataset as $idx=>$data)
-		{
-			foreach($data as $k=>$values)
-			{
-				$pointers	= explode('_',$k);
-				$valVar		= $pointers[count($pointers)-1];
-				$keyVar		= $pointers[count($pointers)-2];
-				$attrs[$keyVar][$idx][$valVar] = $values;
-
-				if (count($pointers) == 4) 
-				{
-					if ($pointers[0] == $pointers[2]) $lastId = $values;
-					if ($pointers[0] != $pointers[2]) $map[$pointers[0]][$lastId][$pointers[2]][$values] = $pointers[3];
-				}
-			}
-		}
-
-		// Now condense down to array of tables / objects
-		foreach($attrs as $table=>$array)
-		{
-			foreach($array as $idx=>$v)
-				foreach($v as $col=>$val)
-				{
-					$final[$table][$v['id']][$col] = $val;
-				}
-		}
-
-		// put array together based on mapping
-		if (!empty($map))
-		{
-			// This allows us to condense from the greatest to the least
-			$map = array_reverse($map);
-			foreach($map as $root=>$array)
-			{
-				foreach($array as $rootIdx=>$dataField)
-				{
-					$newFinal[$root][$rootIdx] = array();
-					foreach($dataField as $key=>$id)
-					{
-						foreach($id as $idx=>$colname)
-						{
-							if ($reindex) $final[$root][$rootIdx][$key][] = $final[$key][$idx];
-							else $final[$root][$rootIdx][$key][$idx] = $final[$key][$idx];
-						}
-					}
-				}
-			}
-			foreach(array_keys($final) as $k) if ($k != $tableName) unset($final[$k]);
-		}
-
-		return($final);
-	}
-
+	/**
+	 * Stores the data objects and any relationships into the database use it for both inserts and updates.  Norm will decide.
+	 * @param object $obj this is the object with any arrays of objects connected to it
+	 * @param bool $ignoreNull if a field is null, don't assign it's value to the database when updating
+	 * @access public
+     * @see get() del() tie()
+	 */
 	public function store($obj,$ignoreNull = 1)
 	{
 		$tableName	= self::getClass($obj);
@@ -369,6 +433,94 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		return($this);
 	}
 
+	/**
+	 * Think: my $iceCream_obj1 has "N" $flavors_obj2
+	 * @param object $obj1 this is the parent object
+	 * @param object $obj2 this is the object that the parent will 
+	 * @access private
+	 * @see get()
+	 */
+	private function getClass($obj)
+	{
+		return(strtolower(get_class($obj)));
+	}
+
+	/**
+	 * Condenses the results from the database into a usable assoc array (tried to do in a non-recursive way)
+	 * @param array $dataset This is the returned data from PDO fetchAll()
+	 * @param string $tableName the "root" table name.  The first assoc name of the array
+	 * @param bool $reindex (true) reindex the array at 0 (false) keep the indexes as the database id column of each object
+	 * @access private
+     * @see get() 
+	 */
+	//  If I don't reindex, then it will keep id as the index of the array
+	private function condense($dataset,$tableName,$reindex = 1)
+	{
+		if (empty($dataset)) 
+		{
+			trigger_error('Results Empty',E_USER_NOTICE);
+			return(null);
+		}
+		// Build my dataset KVP
+		foreach($dataset as $idx=>$data)
+		{
+			foreach($data as $k=>$values)
+			{
+				$pointers	= explode('_',$k);
+				$valVar		= $pointers[count($pointers)-1];
+				$keyVar		= $pointers[count($pointers)-2];
+				$attrs[$keyVar][$idx][$valVar] = $values;
+
+				if (count($pointers) == 4) 
+				{
+					if ($pointers[0] == $pointers[2]) $lastId = $values;
+					if ($pointers[0] != $pointers[2]) $map[$pointers[0]][$lastId][$pointers[2]][$values] = $pointers[3];
+				}
+			}
+		}
+
+		// Now condense down to array of tables / objects
+		foreach($attrs as $table=>$array)
+		{
+			foreach($array as $idx=>$v)
+				foreach($v as $col=>$val)
+				{
+					$final[$table][$v['id']][$col] = $val;
+				}
+		}
+
+		// put array together based on mapping
+		if (!empty($map))
+		{
+			// This allows us to condense from the greatest to the least
+			$map = array_reverse($map);
+			foreach($map as $root=>$array)
+			{
+				foreach($array as $rootIdx=>$dataField)
+				{
+					$newFinal[$root][$rootIdx] = array();
+					foreach($dataField as $key=>$id)
+					{
+						foreach($id as $idx=>$colname)
+						{
+							if ($reindex) $final[$root][$rootIdx][$key][] = $final[$key][$idx];
+							else $final[$root][$rootIdx][$key][$idx] = $final[$key][$idx];
+						}
+					}
+				}
+			}
+			foreach(array_keys($final) as $k) if ($k != $tableName) unset($final[$k]);
+		}
+
+		return($final);
+	}
+
+
+	/**
+	 * parses the DSN string into usable parts
+	 * @param string $dsn the DSN string for database connection
+	 * @access private
+	 */
 	private function parseDsn($dsn)
 	{
 		list($dbType,$str) = explode(':',$dsn);
@@ -381,6 +533,10 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		return($dsna);
 	}
 
+	/**
+	 * Maps the database tables into a hierarchy
+	 * @access private
+	 */
 	private function getMaps()
 	{
 		if (!empty($this->maps)) return($this->maps);
@@ -400,7 +556,12 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		return(false);
 	}
 
-	public function reduceTables($obj)
+	/**
+	 * Reduces the table structure of an object into its mapping
+	 * @param object $obj the object to reduce
+	 * @access private
+	 */
+	private function reduceTables($obj)
 	{
 		if (is_object($obj)) $table = self::getClass($table);
 		else $table = $obj;
@@ -418,6 +579,11 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		return(false);
 	}
 
+	/**
+	 * Finds any of the tables that are associated with a particular table
+	 * @param string $table the name of the table to get associations
+	 * @access private
+	 */
 	private function getRelatedTables($table)
 	{
 		$related	= array();
@@ -439,6 +605,10 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		else return(null);
 	}
 
+	/**
+	 * Gets a list of tables from this database connection
+	 * @access private
+	 */
 	private function getTableList()
 	{
 		if (empty($this->tableList))
@@ -455,6 +625,11 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		return($this->tableList);
 	}
 	
+	/**
+	 * Gets a the schema for a particular table
+	 * @param string $tableName the name of the table to get the schema for
+	 * @access private
+	 */
 	private function getTableSchema($tableName)
 	{
 		if (!strlen($tableName)) return(false);
@@ -472,6 +647,13 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		return($this->tableSchema[$tableName]);
 	}
 
+	/**
+	 * Compare 2 schemas to see what the diff is (for automatic colum creation) additive only
+	 * @param array $schema1 the first  schema from to compare
+	 * @param array $schema2 the second schema from to compare
+	 * @access private
+     * @see getTableSchema()
+	 */
 	private function compareSchemas($schema1,$schema2,$ignore = array())
 	{
 		$schema1 = array_flip($schema1);
@@ -489,29 +671,48 @@ $Q2 = "SELECT * FROM titles INNER JOIN titles_movielist ON (titles_movielist_tit
 		return(array_diff($schema1,$schema2));
 	}
 
-	private function is_datetime($v)
+	/**
+	 * figure out if a field is a datetime field
+	 * @param string $dt a string containing a date or a time parsable by php
+	 * @access private
+	 */
+	private function is_datetime($dt)
 	{
-		return (strtotime($v));
+		return (strtotime($dt));
 	}
 
-	private function buildType($t,$k,$v)
+	/**
+	 * Figures out the data type to store in the database for table creation / alteration
+	 * @param string $table the name of the table
+     * @param string $col name of the column
+	 * @access private
+	 * @see buildSet()
+	 */
+	private function buildType($table,$col,$v)
 	{
 		$Q = '';
-		if (is_int($v)) 								$Q .= "`{$t}_{$k}` int not null,";
-		else if (is_float($v)) 							$Q .= "`{$t}_{$k}` float not null,";
-		//else if (self::is_datetime($v)) 				$Q .= "`{$t}_{$k}` timestamp not null,";
-		else if (is_string($v) && strlen($v) <= 255)	$Q .= "`{$t}_{$k}` varchar(255) not null,";
-		else if (is_string($v) && strlen($v) > 255)		$Q .= "`{$t}_{$k}` text default(''),";
+		if (is_int($v)) 								$Q .= "`{$table}_{$col}` int not null,";
+		else if (is_float($v)) 							$Q .= "`{$table}_{$col}` float not null,";
+		//else if (self::is_datetime($v)) 				$Q .= "`{$table}_{$col}` timestamp not null,";
+		else if (is_string($v) && strlen($v) <= 255)	$Q .= "`{$table}_{$col}` varchar(255) not null,";
+		else if (is_string($v) && strlen($v) > 255)		$Q .= "`{$table}_{$col}` text default(''),";
 		else if (is_object($v)) 						
 		{
 			$tableName	= self::getClass($v);
-														$Q .= "`{$tableName}_{$k}` int unsigned not null,";
+														$Q .= "`{$tableName}_{$col}` int unsigned not null,";
 		}
-		else $Q .= "`{$t}_{$k}` varchar(255) not null,"; // Kinda generic type / catch all.
+		else $Q .= "`{$table}_{$col}` varchar(255) not null,"; // Kinda generic type / catch all.
 
 		return($Q);
 	}
 
+	/**
+	 * actually builds the ALTER TABLE and CREATE TABLE for the database.
+	 * @param string $tableName the name of the table to create
+     * @param object $objVars the object containing variables to create
+	 * @access private
+	 * @see getTableSchema() compareSchemas() buildType()
+	 */
 	private function buildSet($tableName,$objVars)
 	{
 		if (!strlen($tableName)) return(false);

@@ -78,6 +78,7 @@ if (isset($_REQUEST['user']))
 		$user = array_shift($user['user']);
 		$_SESSION['user'] = $user;
 	}
+	else die('<h1>Invalid login</h1>');
 }
 
 if (isset($_REQUEST['del']))
@@ -138,9 +139,8 @@ __EOT__;
 if (!isset($_SESSION['user']))	print $loginForm;
 else 							print $postForm;
 
-// So my user has POSTS .. so lets get everybody's posts
-//$users = $w->get($u,'post_id,user_login,user_id,post_title,post_body,post_updated','',NORM_FULL);
-$users = $w->get($u,'*','',NORM_FULL);
+// Lets grab the full hierarchy of all users
+$users = $w->get($u,'*','',Norm::FULL);
 
 if (!empty($users))
 {
@@ -152,7 +152,7 @@ if (!empty($users))
 			// Get all the comments for this post
 			$c = new Comment();
 			$c->post_id = $postData['id'];
-			$comments = @$w->get($c,'comment_comment,comment_id','',NORM_FULL);
+			$comments = @$w->get($c,'comment_comment,comment_id','',Norm::FULL);
 
 			if ($data['id'] == @$_SESSION['user']['id']) $delButton = " | <a class=\"ctrls\" href=\"{$_SERVER['PHP_SELF']}?del={$postData['id']}\">X</a>";
 			print <<<__EOT__
