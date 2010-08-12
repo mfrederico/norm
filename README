@@ -1,15 +1,2 @@
 *NORM
-// Release 1.1
-- Fixed query to use inner join
-- Fixed blog example
-
-// Major release 1.0
-- Added ability to add multi-dimensional complex objects
-- Added delete function
-- Return results in a more expected manner
-
-// n.ot an orm.
-- initial release 
-- sorry, forgot to add a "delete" method - will do shortly! (psshht .. who needs to delete stuff ANYWAY ..)
-- don't have 1:1 working at the moment, but 1:n works just swell.
-- Check out the examples!
+See: http://www.ultrize.com/norm/doc/
