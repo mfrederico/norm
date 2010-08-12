@@ -69,7 +69,7 @@ else
 {
     // Get all data linked where title id = 1
 	$t->id=1;
-	$d = $N->get($t,'*','',NORM_FULL);
+	$d = $N->get($t,'*',Norm::FULL);
 	print "<pre>";
 	print_r($d);
 }

@@ -328,7 +328,7 @@ class Norm
 				$this->whereVars[self::getClass($whereObj)] = get_object_vars($whereObj);
 			}
 		}
-		else $this->whereVars[self::getClass($whereObjs)] = get_object_vars($whereObj);
+		else if (is_object($whereObjs)) $this->whereVars[self::getClass($whereObjs)] = get_object_vars($whereObjs);
 
 		return($this);
 	}
@@ -345,6 +345,8 @@ class Norm
 	 */
 	public function get($fromObj,$cols = '*',$getSet = 1)
 	{
+		$WHERE	= '';
+		$AND	= '';
 		$cols=strtolower($cols);
 		$getCols = explode(',',$cols);
 		
@@ -371,11 +373,13 @@ class Norm
 	
 		// This develops our WHERE clause from our own passed object
 		if (!empty($objVars)) foreach($objVars as $k=>$v) 
+		{
 			if (!empty($v))
 			{
 				if (strlen($WHERE)) $WHERE .= " AND ";
 				$WHERE .= "{$tableName}_{$k}='{$v}' ";
 			}
+		}
 
 		// This builds any extra AND clauses
 		if (!empty($this->whereVars)) foreach($this->whereVars as $k=>$v) 

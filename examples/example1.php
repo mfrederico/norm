@@ -1,30 +1,26 @@
-*NORM
-See: http://www.ultrize.com/norm/doc/
-
-ah sweet simplicity
-
-<?php 
+<?php
 //------------------------------------
 // Example 1
 //------------------------------------
 // Storing an object in a database 
 
 // Include Norm
-include('norm.php');
+include('../norm.php');
+include('../../norm_db_config.php');
 
 // Create a norm instance - mysql for now, more coming later
-$norm = new Norm('mysql:host=host;dbname=dbname','user','pass');
+$norm = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
 
 // My container object [NOTE: no vars specified - that's OK!]
-class Costume { }
+class Costume { } 
 
 // Instantiate my container object
 $costume = new Costume();
 
 // Set up some vars for this costume
 $costume->title = 'Scary Mask';
-$costume->sku	= '324-2444-234';
-$costume->price	= '19.95';	
+$costume->sku   = '324-2444-234';
+$costume->price = '19.95'; 
 
 // Store them in the database
 $norm->store($costume);
@@ -34,7 +30,10 @@ $norm->store($costume);
 echo "Costume Id: {$costume->id}<br />";
 
 // Also check your database - you should see a new "costume" table!
+// If you run this several times, you should see the costume id increment.
+
+//------------------------------------
+// NEXT UP: example2.php 
+// - Lets 'GET' those costumes out of the database!
+//------------------------------------
 ?>
-
-
-
