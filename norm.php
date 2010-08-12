@@ -420,10 +420,13 @@ class Norm
 		{
 			foreach($objVars as $k=>$v)
 			{
-				$Q.=" `{$tableName}_{$k}`='{$v}',";
+				if ($k == 'id') $WHERE[] = "`{$tableName}_{$k}`='{$v}'";
+				else $Q.=" `{$tableName}_{$k}`='{$v}',";
 			}
 			$Q = rtrim($Q,',');
 		}
+
+		if (!empty($WHERE)) $Q .= " WHERE ".join('AND',$WHERE);
 
 		$storage = self::$link->prepare($Q);
 		$storage->execute();
