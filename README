@@ -1,40 +1,5 @@
 *NORM
 See: http://www.ultrize.com/norm/doc/
 
-ah sweet simplicity
-
-<?php 
-//------------------------------------
-// Example 1
-//------------------------------------
-// Storing an object in a database 
-
-// Include Norm
-include('norm.php');
-
-// Create a norm instance - mysql for now, more coming later
-$norm = new Norm('mysql:host=host;dbname=dbname','user','pass');
-
-// My container object [NOTE: no vars specified - that's OK!]
-class Costume { }
-
-// Instantiate my container object
-$costume = new Costume();
-
-// Set up some vars for this costume
-$costume->title = 'Scary Mask';
-$costume->sku	= '324-2444-234';
-$costume->price	= '19.95';	
-
-// Store them in the database
-$norm->store($costume);
-
-// Once costume is "created" it's instance will be "stuffed" with a new id
-// check it:
-echo "Costume Id: {$costume->id}<br />";
-
-// Also check your database - you should see a new "costume" table!
-?>
-
-
+Check out example1.php - ah sweet simplicity
 
