@@ -9,6 +9,7 @@ include('../norm.php');
 include('../../norm_db_config.php');
 /* I like Norm, Norm is easy and wears a tie. :-) */
 $w = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
+$w->setTablePrefix('NORM_');
 
 
 class User
@@ -36,13 +37,17 @@ if (isset($_REQUEST['init']))
 	$u = new User();
 	$u->login		= 'test';
 	$u->password	= 'test';
-	$w->store($u);
 
 	// Create an inital post BY that user
 	$p = new Post();
 	$p->title	= 'This is an initial post!';
 	$p->body	= 'Norm likes to wear a tie.  It makes him feel friendly!';
-	$w->tie($u,$p);
+
+	// combine them
+	$u->post = $p;
+
+	// Store them
+	$w->store($u);
 
 	header("Location: ".$_SERVER['SCRIPT_NAME']);
 }
@@ -72,7 +77,7 @@ $u = new User(); // Root element
 if (isset($_REQUEST['user']))
 {
 	// Should validate form, check for login && password
-	$user = $w->stuff($_REQUEST['user'],$u)->get($u,'user_login,user_password,user_id');
+	$user = $w->stuff($_REQUEST['user'],$u)->get($u,'user_login,user_password,user_id',Norm::SINGLE);
 	if (!empty($user)) 
 	{
 		$user = array_shift($user['user']);
@@ -140,7 +145,7 @@ if (!isset($_SESSION['user']))	print $loginForm;
 else 							print $postForm;
 
 // Lets grab the full hierarchy of all users
-$users = $w->get($u,'*','',Norm::FULL);
+$users = $w->get($u,'*',Norm::FULL);
 
 if (!empty($users))
 {
@@ -152,7 +157,7 @@ if (!empty($users))
 			// Get all the comments for this post
 			$c = new Comment();
 			$c->post_id = $postData['id'];
-			$comments = @$w->get($c,'comment_comment,comment_id','',Norm::FULL);
+			$comments = @$w->get($c,'comment_comment,comment_id',Norm::FULL);
 
 			if ($data['id'] == @$_SESSION['user']['id']) $delButton = " | <a class=\"ctrls\" href=\"{$_SERVER['PHP_SELF']}?del={$postData['id']}\">X</a>";
 			print <<<__EOT__
