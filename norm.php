@@ -99,6 +99,18 @@ class Norm
 	protected $maps			= array();
 
 	/**
+	 * @var whereVars collection of classes with vars to set as where clause
+	 * @access protected
+	 */
+	protected $whereVars	= array();
+
+	/**
+	 * @var prefix the database table prefix
+	 * @access protected
+	 */
+	protected $prefix		= '';
+
+	/**
 	 * @var link This is the actual PDO link to the database
 	 * @access protected
 	 */
@@ -162,6 +174,18 @@ class Norm
 		*/
 	}
 
+	/**
+	 * Allows you to set the table prefix
+	 * @param string $prefix prefix for the table
+	 * @access public
+	 * @returns object 
+	 * @see store() del() tie() buildSet() .. 
+	 */
+	public function setTablePrefix($prefix)
+	{
+		$this->prefix = $prefix;
+		return($this);
+	}
 
 	/**
 	 * Ties an array of objects together
@@ -203,7 +227,7 @@ class Norm
 				$data->execute();
 
 				// Create unique index for this lookup
-				$Q = "ALTER TABLE {$tableName} ADD unique index({$tableName}_{$var1},{$tableName}_{$var2})";
+				$Q = "ALTER TABLE {$this->prefix}{$tableName} ADD unique index({$tableName}_{$var1},{$tableName}_{$var2})";
 				$data = self::$link->prepare($Q);
 				$data->execute();
 			}
@@ -215,7 +239,7 @@ class Norm
 			$tmp = $this->store($obj2);
 			if (isset($obj1->id) && isset($obj2->id))
 			{
-				$Q="INSERT INTO {$tableName} SET `{$tableName}_{$var1}`='{$obj1->id}', `{$tableName}_{$var2}`='{$obj2->id}'";
+				$Q="INSERT INTO {$this->prefix}{$tableName} SET `{$tableName}_{$var1}`='{$obj1->id}', `{$tableName}_{$var2}`='{$obj2->id}'";
 				$data = self::$link->prepare($Q);
 				$data->execute();
 			}
@@ -277,29 +301,49 @@ class Norm
 		{
 			foreach(array_keys($this->relatedTables[$tableName]) as $joinTable)
 			{
-				$Q = "DELETE FROM {$joinTable}_{$tableName} WHERE {$joinTable}_{$tableName}_{$tableName}_id='{$obj->id}'";
+				$Q = "DELETE FROM {$this->prefix}{$joinTable}_{$tableName} WHERE {$joinTable}_{$tableName}_{$tableName}_id='{$obj->id}'";
 				$data = self::$link->prepare($Q);
 				$data->execute();
 			}
 		}
-		$Q="DELETE FROM {$tableName} WHERE {$tableName}_id='{$obj->id}'";
+		$Q="DELETE FROM {$this->prefix}{$tableName} WHERE {$tableName}_id='{$obj->id}'";
 		$data = self::$link->prepare($Q);
 		$data->execute();
 		return($this);
 	}
 
 	/**
+	 * Sets the "where" parameters of any related objects if necessary
+	 * @param mixed $whereObjs objects to specify column attributes
+	 * @access public
+	 * @returns object
+     * @see get() del()
+	 */
+	public function where($whereObjs = array())
+	{
+		if (is_array($whereObjs)) 
+		{
+			foreach($whereObjs as $whereObj) 
+			{
+				$this->whereVars[self::getClass($whereObj)] = get_object_vars($whereObj);
+			}
+		}
+		else $this->whereVars[self::getClass($whereObjs)] = get_object_vars($whereObj);
+
+		return($this);
+	}
+
+	/**
 	 * Returns an object hierarchy from the database - Norm does it's best to 
-	 * return all references to this object as well.
+	 * return all references to this object as well.  Get is an ending method
 	 * @param object $fromObj This is the main object to return
 	 * @param string $cols CSV of column names - in the format "classname_column1,classname_column2 .. "
-	 * @param array $whereObjs array of objects to apply to WHERE clause.  Norm will use any fields that are populated in these objects as part of the where clause.  E.g.: <br/><code>$user->id=1<br/>$auth->level=1<br/>Norm::get($user,'user_name,user_pass',$auth);</code>
 	 * @param bool $getSet Whether or not to return the ENTIRE hierarchical structure
 	 * @access public
 	 * @returns array
-     * @see del() reduceTables() condense()
+     * @see where() del() reduceTables() condense()
 	 */
-	public function get($fromObj,$cols = '*',$whereObjs = array(),$getSet = 1)
+	public function get($fromObj,$cols = '*',$getSet = 1)
 	{
 		$cols=strtolower($cols);
 		$getCols = explode(',',$cols);
@@ -307,7 +351,7 @@ class Norm
 		$tableName	= self::getClass($fromObj);
 		$objVars	= get_object_vars($fromObj);
 
-		$Q="SELECT ".join(',',$getCols)." FROM {$tableName}";
+		$Q="SELECT ".join(',',$getCols)." FROM {$this->prefix}{$tableName}";
 
 		if ($getSet)
 		{
@@ -319,13 +363,13 @@ class Norm
 				{
 					foreach($qrys as $qry) 
 					{
-						$Q .= " INNER JOIN {$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) INNER JOIN {$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
+						$Q .= " INNER JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) INNER JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
 					}
 				}
 			}
 		}
 	
-		// This develops our WHERE clause
+		// This develops our WHERE clause from our own passed object
 		if (!empty($objVars)) foreach($objVars as $k=>$v) 
 			if (!empty($v))
 			{
@@ -333,9 +377,8 @@ class Norm
 				$WHERE .= "{$tableName}_{$k}='{$v}' ";
 			}
 
-		if (is_array($whereObjs)) foreach($whereObjs as $whereObj) $whereVars[self::getClass($whereObj)] = get_object_vars($whereObj);
 		// This builds any extra AND clauses
-		if (!empty($whereVars)) foreach($whereVars as $k=>$v) 
+		if (!empty($this->whereVars)) foreach($this->whereVars as $k=>$v) 
 		{
 			foreach($v as $kn=>$vl) 
 			{
@@ -412,9 +455,9 @@ class Norm
 		}
 
 		if (isset($obj->id))
-			$Q="UPDATE `{$tableName}` SET";
+			$Q="UPDATE `{$this->prefix}{$tableName}` SET";
 		else
-			$Q="INSERT INTO `{$tableName}` SET";
+			$Q="INSERT INTO `{$this->prefix}{$tableName}` SET";
 
 		if (!empty($objVars))
 		{
@@ -637,6 +680,17 @@ class Norm
 			$dbSchema->execute();
 
 			$ts = $dbSchema->fetchAll(PDO::FETCH_COLUMN);
+
+			// trim out the prefix
+			if ($this->prefix)
+			{
+				foreach($ts as $i=>$val)
+				{
+					$val = substr($val,strlen($this->prefix));
+					$ts[$i] = $val;
+				}
+			}
+
 			if (!count($ts)) $ts = false;
 			$this->tableList  = $ts;
 		}
@@ -655,13 +709,22 @@ class Norm
 		if (!strlen($tableName)) return(false);
 		if (empty($this->tableSchema[$tableName]))
 		{
-			$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
+			$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$this->prefix}{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
 			$dbSchema = self::$link->prepare($Q);
 			$dbSchema->execute();
 
 			$ts = $dbSchema->fetchAll(PDO::FETCH_COLUMN);
 			if (!count($ts)) $ts = false;
 
+			// trim out the prefix
+			if ($this->prefix)
+			{
+				foreach($ts as $i=>$val)
+				{
+					$val = substr($val,strlen($this->prefix));
+					$ts[$i] = $val;
+				}
+			}
 			$this->tableSchema[$tableName] = $ts;
 		}
 		return($this->tableSchema[$tableName]);
@@ -763,7 +826,7 @@ class Norm
 		// Do we need to create new data table?
 		else
 		{
-			$Q="CREATE TABLE IF NOT EXISTS `{$tableName}` (`{$tableName}_id` int(11) unsigned not null primary key auto_increment,";
+			$Q="CREATE TABLE IF NOT EXISTS `{$this->prefix}{$tableName}` (`{$tableName}_id` int(11) unsigned not null primary key auto_increment,";
 			foreach($objVars as $k=>$v)
 			{
 				$Q .= $this->buildType($tableName,$k,$v);
