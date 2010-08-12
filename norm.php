@@ -458,7 +458,7 @@ class Norm
 			$schema->execute();
 		}
 
-		if (isset($obj->id))
+		if (!empty($obj->id))
 			$Q="UPDATE `{$this->prefix}{$tableName}` SET";
 		else
 			$Q="INSERT INTO `{$this->prefix}{$tableName}` SET";
@@ -478,7 +478,7 @@ class Norm
 		$storage = self::$link->prepare($Q);
 		$storage->execute();
 
-		if (!isset($obj->id))
+		if (empty($obj->id))
 		{
 			$lid = self::$link->lastInsertId();
 			if ($lid) $obj->id = $lid;
