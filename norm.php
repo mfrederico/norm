@@ -31,23 +31,27 @@
 // * You don't have to create the database tables
 // * 3 Main functions - store,get,del.  Norm takes care of the rest
 // * Automatic table creation 
+/**
+ * NORM is a PHP class for storing and retrieving PHP objects to and from a database
+ * <ul><li>3 main public methods - store,get,del</li>
+ * <li>Creates your database tables on the fly as needed</li>
+ * <li>Does it's best to maintian hierarchy</li></ul>
+ * @package ultrize.norm
+ */
 
 /**
- * Php class for storing and retrieving PHP objects in a database
- * 3 main public methods - store,get,del
- * Creates your database tables on the fly as needed
- * Does it's best to maintian hierarchy
- * @abstract simple PHP class for storing and retrieving PHP objects in a database without touching SQL
  * @author Matthew Frederico
  * @link http://www.ultrize.com/norm/
  * @license http://www.gnu.org/copyleft/lesser.html LGPL
  * @version 1.1
+ * @copyright Copyright 2010 Matthew Frederico - ultrize.com
+ * @package Norm
  */
 class Norm
 {
 	/**
-	 * @var DEFAULT how to return data 
-	 * @description only returns the parent object's data
+	 * Single only returns a single object's data
+	 * @var SINGLE how to return data 
 	 */
 	const SINGLE	= 0;
 	const FULL		= 1;
@@ -106,6 +110,7 @@ class Norm
 	 * @param string $user username to connect to the database
 	 * @param string $pass password to connect to the database
 	 * @param string $attr extra PDO attributes passable
+	 * @returns object 
 	 * @access public 
 	 */
 	public function __construct($dsn,$user = null,$pass = null,$attr = null) 
@@ -130,6 +135,7 @@ class Norm
 	 * @param object $obj1 this is the parent object
 	 * @param object $obj2 this is the object that the parent will 
 	 * @access public
+	 * @returns object 
 	 * @see tieMany() store()
 	 */
 	public function tie($obj1,$obj2,$opt='')
@@ -162,6 +168,7 @@ class Norm
 	 * @param object $obj1 this is the parent object
 	 * @param array $objArrays this is the array of objects 
 	 * @access public
+	 * @returns object 
 	 * @see tie()
 	 */
 	public function tieMany($obj1,$objArrays = array(),$opt='')
@@ -228,6 +235,7 @@ class Norm
 	 * @param array $obj object to "stuff" into
 	 * @param string $fields a csv of fieldnames to "stuff" into the object
 	 * @access public
+	 * @returns object 
 	 * @see store() tie()
 	 */
 	public function stuff($array,$obj,$fields = '')
@@ -252,6 +260,7 @@ class Norm
 	 * delete all references to this object as well.
 	 * @param object $obj This is the object to delete.  
 	 * @access public
+	 * @returns object
 	 * @see get()
 	 */
 	public function del($obj)
@@ -284,9 +293,10 @@ class Norm
 	 * return all references to this object as well.
 	 * @param object $fromObj This is the main object to return
 	 * @param string $cols CSV of column names - in the format "classname_column1,classname_column2 .. "
-	 * @param array $whereObjs array of objects to apply to WHERE clause.  Norm will use any fields that are populated in these objects as part of the where clause.  E.g.: <br/><code>$user->id=1<br/>$auth->level=1<br/>Norm::get($user,'user_name,user_pass',$auth);
+	 * @param array $whereObjs array of objects to apply to WHERE clause.  Norm will use any fields that are populated in these objects as part of the where clause.  E.g.: <br/><code>$user->id=1<br/>$auth->level=1<br/>Norm::get($user,'user_name,user_pass',$auth);</code>
 	 * @param bool $getSet Whether or not to return the ENTIRE hierarchical structure
 	 * @access public
+	 * @returns array
      * @see del() reduceTables() condense()
 	 */
 	public function get($fromObj,$cols = '*',$whereObjs = array(),$getSet = 1)
@@ -351,6 +361,7 @@ class Norm
 	 * @param object $obj this is the object with any arrays of objects connected to it
 	 * @param bool $ignoreNull if a field is null, don't assign it's value to the database when updating
 	 * @access public
+	 * @returns object
      * @see get() del() tie()
 	 */
 	public function store($obj,$ignoreNull = 1)
@@ -434,11 +445,10 @@ class Norm
 	}
 
 	/**
-	 * Think: my $iceCream_obj1 has "N" $flavors_obj2
-	 * @param object $obj1 this is the parent object
-	 * @param object $obj2 this is the object that the parent will 
+	 * Returns the class name of the object - lowercase.  <em>(windows compatability)</em>
+	 * @param object $obj 
 	 * @access private
-	 * @see get()
+	 * @returns string
 	 */
 	private function getClass($obj)
 	{
@@ -451,6 +461,7 @@ class Norm
 	 * @param string $tableName the "root" table name.  The first assoc name of the array
 	 * @param bool $reindex (true) reindex the array at 0 (false) keep the indexes as the database id column of each object
 	 * @access private
+	 * @returns array
      * @see get() 
 	 */
 	//  If I don't reindex, then it will keep id as the index of the array
@@ -519,6 +530,7 @@ class Norm
 	/**
 	 * parses the DSN string into usable parts
 	 * @param string $dsn the DSN string for database connection
+	 * @returns array
 	 * @access private
 	 */
 	private function parseDsn($dsn)
@@ -536,6 +548,7 @@ class Norm
 	/**
 	 * Maps the database tables into a hierarchy
 	 * @access private
+	 * @returns array or false
 	 */
 	private function getMaps()
 	{
@@ -559,6 +572,7 @@ class Norm
 	/**
 	 * Reduces the table structure of an object into its mapping
 	 * @param object $obj the object to reduce
+	 * @returns array or false
 	 * @access private
 	 */
 	private function reduceTables($obj)
@@ -582,6 +596,7 @@ class Norm
 	/**
 	 * Finds any of the tables that are associated with a particular table
 	 * @param string $table the name of the table to get associations
+	 * @returns array or null
 	 * @access private
 	 */
 	private function getRelatedTables($table)
@@ -607,6 +622,7 @@ class Norm
 
 	/**
 	 * Gets a list of tables from this database connection
+	 * @returns array
 	 * @access private
 	 */
 	private function getTableList()
@@ -628,6 +644,7 @@ class Norm
 	/**
 	 * Gets a the schema for a particular table
 	 * @param string $tableName the name of the table to get the schema for
+	 * @returns array
 	 * @access private
 	 */
 	private function getTableSchema($tableName)
@@ -652,6 +669,7 @@ class Norm
 	 * @param array $schema1 the first  schema from to compare
 	 * @param array $schema2 the second schema from to compare
 	 * @access private
+	 * @returns array
      * @see getTableSchema()
 	 */
 	private function compareSchemas($schema1,$schema2,$ignore = array())
@@ -672,8 +690,9 @@ class Norm
 	}
 
 	/**
-	 * figure out if a field is a datetime field
+	 * figure out if a field is a datetime field by returning a valid unix timestamp
 	 * @param string $dt a string containing a date or a time parsable by php
+	 * @returns int 
 	 * @access private
 	 */
 	private function is_datetime($dt)
@@ -686,6 +705,7 @@ class Norm
 	 * @param string $table the name of the table
      * @param string $col name of the column
 	 * @access private
+	 * @returns string
 	 * @see buildSet()
 	 */
 	private function buildType($table,$col,$v)
@@ -711,6 +731,7 @@ class Norm
 	 * @param string $tableName the name of the table to create
      * @param object $objVars the object containing variables to create
 	 * @access private
+	 * @returns string
 	 * @see getTableSchema() compareSchemas() buildType()
 	 */
 	private function buildSet($tableName,$objVars)
