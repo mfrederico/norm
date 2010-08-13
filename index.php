@@ -20,4 +20,4 @@
 </ul>
 <br/>
 <h2>Some example code for norm:</h2>
-<?php highlight_string(file_get_contents("examples/norm_example.php")); ?>
+<?php highlight_string(file_get_contents("examples/example1.php")); ?>
