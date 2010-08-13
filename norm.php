@@ -541,7 +541,8 @@ class Norm
 			{
 				$pointers	= explode('_',$k);
 
-				if($pointers[1] == 'id') $i = $values;
+				$idname = $pointers[0].'_id'; 
+				if (!empty($data[$idname])) $i = $data[$idname];
 
 				// These are the actual vars
 				if (count($pointers) == 2)
