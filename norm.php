@@ -575,7 +575,8 @@ class Norm
 			{
 				foreach($data as $k=>$v)
 				{
-					if (is_array($tblVars[$k]))
+					// Make sure we aren't putting a "comment" inside of a "comment"
+                    if (is_array($tblVars[$k]) && $k != $tbl)
 					{
 						$tblVars[$tbl][$col_id][$k] = $tblVars[$k];
 						unset($tblVars[$k]);
