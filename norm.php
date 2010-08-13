@@ -365,7 +365,8 @@ class Norm
 				{
 					foreach($qrys as $qry) 
 					{
-						$Q .= " INNER JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) INNER JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
+						//$Q .= " INNER JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) INNER JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
+						$Q .= " LEFT JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) LEFT JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
 					}
 				}
 			}
@@ -505,6 +506,16 @@ class Norm
 		return(strtolower(get_class($obj)));
 	}
 
+
+	private function reindex($array)
+	{
+		foreach($array as $k=>$v) 
+		{	
+			$reindexed[] = $v;
+		}
+		return($reindexed);
+	}
+
 	/**
 	 * Condenses the results from the database into a usable assoc array (tried to do in a non-recursive way)
 	 * @param array $dataset This is the returned data from PDO fetchAll()
@@ -522,58 +533,56 @@ class Norm
 			trigger_error('Results Empty',E_USER_NOTICE);
 			return(null);
 		}
+
 		// Build my dataset KVP
 		foreach($dataset as $idx=>$data)
 		{
 			foreach($data as $k=>$values)
 			{
 				$pointers	= explode('_',$k);
-				$valVar		= $pointers[count($pointers)-1];
-				$keyVar		= $pointers[count($pointers)-2];
-				$attrs[$keyVar][$idx][$valVar] = $values;
 
+				if($pointers[1] == 'id') $i = $values;
+
+				// These are the actual vars
+				if (count($pointers) == 2)
+				{
+					$tblVars[$pointers[0]][$i][$pointers[1]] = $values;
+				}
+				// These are the relationships
 				if (count($pointers) == 4) 
 				{
-					if ($pointers[0] == $pointers[2]) $lastId = $values;
-					if ($pointers[0] != $pointers[2]) $map[$pointers[0]][$lastId][$pointers[2]][$values] = $pointers[3];
+					$tblVars[$pointers[0]][$i][$pointers[1]] = $values;
 				}
 			}
 		}
 
-		// Now condense down to array of tables / objects
-		foreach($attrs as $table=>$array)
+		// Reverse these so we can get the stack hierarchy
+		$tblVars = array_reverse($tblVars);
+
+		// Reindex at 0 instead of id key
+		if ($reindex)
 		{
-			foreach($array as $idx=>$v)
-				foreach($v as $col=>$val)
-				{
-					$final[$table][$v['id']][$col] = $val;
-				}
+			foreach($tblVars as $tbl=>$cols)
+			{
+				$tblVars[$tbl] = $this->reindex($tblVars[$tbl]);
+			}
 		}
 
-		// put array together based on mapping
-		if (!empty($map))
+		foreach($tblVars as $tbl=>$cols)
 		{
-			// This allows us to condense from the greatest to the least
-			$map = array_reverse($map);
-			foreach($map as $root=>$array)
+			foreach($cols as $col_id=>$data)
 			{
-				foreach($array as $rootIdx=>$dataField)
+				foreach($data as $k=>$v)
 				{
-					$newFinal[$root][$rootIdx] = array();
-					foreach($dataField as $key=>$id)
+					if (is_array($tblVars[$k]))
 					{
-						foreach($id as $idx=>$colname)
-						{
-							if ($reindex) $final[$root][$rootIdx][$key][] = $final[$key][$idx];
-							else $final[$root][$rootIdx][$key][$idx] = $final[$key][$idx];
-						}
+						$tblVars[$tbl][$col_id][$k] = $tblVars[$k];
+						unset($tblVars[$k]);
 					}
 				}
 			}
-			foreach(array_keys($final) as $k) if ($k != $tableName) unset($final[$k]);
 		}
-
-		return($final);
+		return($tblVars);
 	}
 
 
