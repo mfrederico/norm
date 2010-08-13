@@ -695,7 +695,7 @@ class Norm
 			$ts = $dbSchema->fetchAll(PDO::FETCH_COLUMN);
 
 			// trim out the prefix
-			if ($this->prefix)
+			if (!empty($this->prefix))
 			{
 				foreach($ts as $i=>$val)
 				{
