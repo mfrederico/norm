@@ -779,7 +779,7 @@ class Norm
 			if (!count($ts)) $ts = false;
 
 			// trim out the prefix
-			if ($this->prefix)
+			if ($this->prefix && count($ts))
 			{
 				foreach($ts as $i=>$val)
 				{
