@@ -123,7 +123,7 @@ class Norm
 	protected $prefix		= '';
 
 	/**
-	 * @var resultsGetMode 0 = condense results, 1 = separate results 2 = return object into data var
+	 * @var resultsGetMode 0 = index results, 1 = separate results 2 = return object into data var
 	 * @access protected
 	 * @see $results get()
 	 */
@@ -383,7 +383,7 @@ class Norm
 	 * @param bool $getSet Whether or not to return the ENTIRE hierarchical structure
 	 * @access public
 	 * @returns array
-     * @see where() del() reduceTables() condense()
+     * @see where() del() reduceTables() index()
 	 */
 	public function get($fromObj,$cols = '*',$getSet = 1)
 	{
@@ -463,7 +463,7 @@ class Norm
 
 		$this->results = $data->fetchAll();
 
-		if		($this->resultsGetMode == 0) return(self::condense($this->results,$tableName));	
+		if		($this->resultsGetMode == 0) return(self::index($this->results));	
 		else if ($this->resultsGetMode == 1) return($this->results);
 		else if ($this->resultsGetMode == 2) return($this);
 	}
@@ -581,11 +581,11 @@ class Norm
 	}
 
 	/**
-	 * Sets how the "get" method will return results from the db e.g: 0 condensed,1 array, or 2 object 
+	 * Sets how the "get" method will return results from the db e.g: 0 indexed array,1 array, or 2 object 
 	 * @param bool $mode (0) / 1 / 2 
 	 * @access public
 	 * @returns object
-     * @see condense() get() 
+     * @see index() get() 
 	 */
 	public function setResultsGetMode($mode = 0)
 	{
@@ -598,7 +598,7 @@ class Norm
 	 * @param array $dataset This is the returned data from PDO fetchAll()
 	 * @access private
 	 * @returns array
-     * @see condense()
+     * @see index()
 	 */
 	private function parseKVP($dataset)
 	{
@@ -628,15 +628,14 @@ class Norm
 	}
 
 	/**
-	 * Condenses the results from the database into a usable assoc array (tried to do in a non-recursive way)
+	 * indexes the results from the database into a usable assoc array 
 	 * @param array $dataset This is the returned data from PDO fetchAll()
-	 * @param string $tableName the "root" table name.  The first assoc name of the array
 	 * @param bool $reindex (true) reindex the array at 0 (false) keep the indexes as the database id column of each object
 	 * @access public
 	 * @returns array
      * @see get() parseKVP()
 	 */
-	public function condense($dataset,$tableName,$reindex = 1)
+	public function index($dataset,$reindex = 1)
 	{
 		if (empty($dataset)) 
 		{
