@@ -99,6 +99,12 @@ class Norm
 	protected $maps			= array();
 
 	/**
+	 * @var orderVars array of column names to set as order by clause
+	 * @access protected
+	 */
+	protected $orderVars	= array();
+
+	/**
 	 * @var whereVars collection of classes with vars to set as where clause
 	 * @access protected
 	 */
@@ -313,11 +319,26 @@ class Norm
 	}
 
 	/**
+	 * Sets the "order by" parameters of any related objects if necessary
+	 * @param mixed $orderBy csv, or array of column names (tablename_column) to specify column attributes
+	 * @param string $dir Direction to sort, ASC or DESC
+	 * @access public
+	 * @returns object
+     * @see get() del() where()
+	 */
+	public function orderby($orderBy,$dir='ASC')
+	{
+		if (is_array($orderBy) && !empty($orderby)) $this->orderVars = $orderBy;
+		else $this->orderVars = explode(',',$orderBy);
+		return($this);
+	}
+
+	/**
 	 * Sets the "where" parameters of any related objects if necessary
 	 * @param mixed $whereObjs objects to specify column attributes
 	 * @access public
 	 * @returns object
-     * @see get() del()
+     * @see get() del() orderby()
 	 */
 	public function where($whereObjs = array())
 	{
@@ -345,6 +366,7 @@ class Norm
 	 */
 	public function get($fromObj,$cols = '*',$getSet = 1)
 	{
+		$ORDER	= '';
 		$WHERE	= '';
 		$AND	= '';
 		$cols=strtolower($cols);
@@ -391,10 +413,26 @@ class Norm
 			}
 		}
 
+		// This builds any ORDER clauses
+		if (!empty($this->orderVars)) foreach($this->orderVars as $v) 
+		{
+			if (!empty($v)) $ORDER .= "{$v},";
+		}
+		if (strlen($ORDER)) 
+		{
+			$ORDER = rtrim($ORDER,',');
+			$ORDER = "ORDER BY {$ORDER}";
+		}
+
 		// Put it all together
 		$Q .= " WHERE {$WHERE}";
 		if (empty($WHERE)) $Q .= '1';
 		$Q .= " {$AND}";
+		$Q .= " {$ORDER}";
+
+		// Release the query parameters
+		$this->orderVars = '';
+		$this->whereVars = '';
 
 		$data = self::$link->prepare($Q);
 		$data->execute();
