@@ -43,7 +43,7 @@
  * @author Matthew Frederico
  * @link http://www.ultrize.com/norm/
  * @license http://www.gnu.org/copyleft/lesser.html LGPL
- * @version 1.1
+ * @version 1.1.1
  * @copyright Copyright 2010 Matthew Frederico - ultrize.com
  * @package Norm
  */
@@ -121,6 +121,19 @@ class Norm
 	 * @access protected
 	 */
 	protected $prefix		= '';
+
+	/**
+	 * @var resultsGetMode 0 = condense results, 1 = separate results 2 = return object into data var
+	 * @access protected
+	 * @see $results get()
+	 */
+	protected $resultsGetMode			= 0;
+
+	/**
+	 * @var results Contains flat array from the database.
+	 * @access public
+	 */
+	public $results			= array();
 
 	/**
 	 * @var link This is the actual PDO link to the database
@@ -448,7 +461,11 @@ class Norm
 
 		$data->setFetchMode(PDO::FETCH_ASSOC);
 
-		return(self::condense($data->fetchAll(),$tableName));	
+		$this->results = $data->fetchAll();
+
+		if		($this->resultsGetMode == 0) return(self::condense($this->results,$tableName));	
+		else if ($this->resultsGetMode == 1) return($this->results);
+		else if ($this->resultsGetMode == 2) return($this);
 	}
 
 	/**
@@ -564,23 +581,27 @@ class Norm
 	}
 
 	/**
-	 * Condenses the results from the database into a usable assoc array (tried to do in a non-recursive way)
+	 * Sets how the "get" method will return results from the db e.g: 0 condensed,1 array, or 2 object 
+	 * @param bool $mode (0) / 1 / 2 
+	 * @access public
+	 * @returns object
+     * @see condense() get() 
+	 */
+	public function setResultsGetMode($mode = 0)
+	{
+		$this->resultsGetMode = $mode;
+		return($this);
+	}
+
+	/**
+	 * Parses the key=>value pairs of a result set into its individual data structure
 	 * @param array $dataset This is the returned data from PDO fetchAll()
-	 * @param string $tableName the "root" table name.  The first assoc name of the array
-	 * @param bool $reindex (true) reindex the array at 0 (false) keep the indexes as the database id column of each object
 	 * @access private
 	 * @returns array
-     * @see get() 
+     * @see condense()
 	 */
-	//  If I don't reindex, then it will keep id as the index of the array
-	private function condense($dataset,$tableName,$reindex = 1)
+	private function parseKVP($dataset)
 	{
-		if (empty($dataset)) 
-		{
-			trigger_error('Results Empty',E_USER_NOTICE);
-			return(null);
-		}
-
 		// Build my dataset KVP
 		foreach($dataset as $idx=>$data)
 		{
@@ -603,9 +624,27 @@ class Norm
 				}
 			}
 		}
+		return(array_reverse($tblVars));
+	}
 
-		// Reverse these so we can get the stack hierarchy
-		$tblVars = array_reverse($tblVars);
+	/**
+	 * Condenses the results from the database into a usable assoc array (tried to do in a non-recursive way)
+	 * @param array $dataset This is the returned data from PDO fetchAll()
+	 * @param string $tableName the "root" table name.  The first assoc name of the array
+	 * @param bool $reindex (true) reindex the array at 0 (false) keep the indexes as the database id column of each object
+	 * @access public
+	 * @returns array
+     * @see get() parseKVP()
+	 */
+	public function condense($dataset,$tableName,$reindex = 1)
+	{
+		if (empty($dataset)) 
+		{
+			trigger_error('Results Empty',E_USER_NOTICE);
+			return(null);
+		}
+
+		$tblVars = $this->parseKVP($dataset);
 
 		// Reindex at 0 instead of id key
 		if ($reindex)
@@ -616,6 +655,7 @@ class Norm
 			}
 		}
 
+		// Condense -> assign each array to it's correct structure
 		foreach($tblVars as $tbl=>$cols)
 		{
 			foreach($cols as $col_id=>$data)
