@@ -145,7 +145,8 @@ if (!isset($_SESSION['user']))	print $loginForm;
 else 							print $postForm;
 
 // Lets grab the full hierarchy of all users
-$users = $w->get($u,'*',Norm::FULL);
+// Because we will be recieving posts, we can order by them as well.
+$users = $w->orderby('post_updated','DESC')->get($u,'*',Norm::FULL);
 
 if (!empty($users))
 {

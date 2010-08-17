@@ -105,6 +105,12 @@ class Norm
 	protected $orderVars	= array();
 
 	/**
+	 * @var orderDir string direction (ASC/DESC) of order by 
+	 * @access protected
+	 */
+	protected $orderDir	= array();
+
+	/**
 	 * @var whereVars collection of classes with vars to set as where clause
 	 * @access protected
 	 */
@@ -328,6 +334,8 @@ class Norm
 	 */
 	public function orderby($orderBy,$dir='ASC')
 	{
+		$this->orderDir = $dir;
+
 		if (is_array($orderBy) && !empty($orderby)) $this->orderVars = $orderBy;
 		else $this->orderVars = explode(',',$orderBy);
 		return($this);
@@ -421,7 +429,7 @@ class Norm
 		if (strlen($ORDER)) 
 		{
 			$ORDER = rtrim($ORDER,',');
-			$ORDER = "ORDER BY {$ORDER}";
+			$ORDER = "ORDER BY {$ORDER} {$this->orderDir}";
 		}
 
 		// Put it all together
@@ -431,8 +439,9 @@ class Norm
 		$Q .= " {$ORDER}";
 
 		// Release the query parameters
-		$this->orderVars = '';
-		$this->whereVars = '';
+		$this->orderVars	= '';
+		$this->orderDir		= '';
+		$this->whereVars	= '';
 
 		$data = self::$link->prepare($Q);
 		$data->execute();
