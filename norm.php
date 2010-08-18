@@ -57,6 +57,29 @@ class Norm
 	const FULL		= 1;
 
 	/**
+	 * Return types for the setResultsGetMode()
+	 * @var AS_INDEXED Default return type, as heirarchical index
+	 * @see get() index()
+	 */
+	const AS_INDEXED= 0; // Default
+
+	/**
+	 * Return types for the setResultsGetMode()
+	 * @var AS_ARRAY Returns it as a flat (non indexed) array
+	 * @see get()
+	 */
+	const AS_ARRAY	= 1;
+
+	/**
+	 * Return types for the setResultsGetMode()
+	 * @var AS_OBJECT - GET returns an object in "Norm::$results"
+	 * @see get() $results
+	 */
+	const AS_OBJECT	= 2;
+
+	// * Sets how the "get" method will return results from the db e.g: 0 indexed array,1 array, or 2 object 
+
+	/**
 	 * @var user The user name used to authenticate into the database (if applicable)
 	 * @access protected
 	 */
@@ -398,6 +421,7 @@ class Norm
 
 		$Q="SELECT ".join(',',$getCols)." FROM {$this->prefix}{$tableName}";
 
+		// Builds join mapping
 		if ($getSet)
 		{
 			$joins = $this->reduceTables($tableName);
@@ -408,7 +432,6 @@ class Norm
 				{
 					foreach($qrys as $qry) 
 					{
-						//$Q .= " INNER JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) INNER JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
 						$Q .= " LEFT JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) LEFT JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
 					}
 				}
@@ -463,6 +486,7 @@ class Norm
 
 		$this->results = $data->fetchAll();
 
+		// Sets the results expectations
 		if		($this->resultsGetMode == 0) return(self::index($this->results));	
 		else if ($this->resultsGetMode == 1) return($this->results);
 		else if ($this->resultsGetMode == 2) return($this);
