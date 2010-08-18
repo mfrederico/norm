@@ -3,7 +3,7 @@
 //============================================================+
 // Norm - Not an ORM                 
 //-------------------------------------
-// Version          : 1.1
+// Version          : 1.1.2
 // Author           : Matthew Frederico          
 // License          : Whichever GPL works best for you
 //-------------------------------------
@@ -490,6 +490,41 @@ class Norm
 		if		($this->resultsGetMode == 0) return(self::index($this->results));	
 		else if ($this->resultsGetMode == 1) return($this->results);
 		else if ($this->resultsGetMode == 2) return($this);
+	}
+
+	
+	/**
+	 * Raw PUT queries for things norm may not be able to do.
+	 * @param string $Q the raw sql 
+	 * @access public
+	 * @returns object
+     * @see get() del() tie() $this->results for insert id
+	 */
+	public function rawPut($Q)
+	{
+		$data = self::$link->prepare($Q);
+		$data->execute();
+		$data->setFetchMode(PDO::FETCH_ASSOC);
+
+		$this->results = self::$link->lastInsertId();
+		return($this);
+	}
+
+	/**
+	 * Raw GET queries for things norm may not be able to do.
+	 * @param string $Q the raw sql 
+	 * @access public
+	 * @returns object
+     * @see get() del() tie() $this->results for data
+	 */
+	public function rawGet($Q)
+	{
+		$data = self::$link->prepare($Q);
+		$data->execute();
+		$data->setFetchMode(PDO::FETCH_ASSOC);
+		$this->results = $data->fetchAll();
+
+		return($this);
 	}
 
 	/**
