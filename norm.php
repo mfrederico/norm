@@ -43,7 +43,7 @@
  * @author Matthew Frederico
  * @link http://www.ultrize.com/norm/
  * @license http://www.gnu.org/copyleft/lesser.html LGPL
- * @version 1.1.1
+ * @version 1.1.2
  * @copyright Copyright 2010 Matthew Frederico - ultrize.com
  * @package Norm
  */
