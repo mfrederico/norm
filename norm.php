@@ -66,7 +66,7 @@ class Norm
 	 * Whether or not to STORE null fields when "storing" 
      * @var STORE_NULL
      */
-	const STORE_NULL	= 1;
+	const STORE_NULL	= 0;
 
 	/**
 	 * Return types for the setResultsGetMode()
@@ -476,7 +476,7 @@ class Norm
 				{
 					foreach($qrys as $qry) 
 					{
-						$Q .= " LEFT JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) LEFT JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
+						$Q .= " JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
 					}
 				}
 			}
@@ -575,7 +575,7 @@ class Norm
 	 * @returns object
      * @see get() del() tie()
 	 */
-	public function store($obj,$skipNull = SKIP_NULL)
+	public function store($obj,$skipNull = 1)
 	{
 		$tableName	= self::getClass($obj);
 		if (!strlen($tableName)) 
