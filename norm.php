@@ -104,10 +104,10 @@ class Norm
 	protected $tableList		= array();
 
 	/**
-	 * @var tableSchema This is the internal table schema for NORM
+	 * @var tableColumns This is the internal table schema for NORM
 	 * @access protected
 	 */
-	protected $tableSchema	= array();
+	protected $tableColumns	= array();
 
 	/**
 	 * @var relatedTables Keeps a hierchical relationship of tables / objects
@@ -897,27 +897,23 @@ class Norm
 	private function getTableSchema($tableName)
 	{
 		if (!strlen($tableName)) return(false);
-		if (empty($this->tableSchema[$tableName]))
+		if (empty($this->tableColumns[$tableName]))
 		{
-			$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$this->prefix}{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
+			$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
 			$dbSchema = self::$link->prepare($Q);
 			$dbSchema->execute();
 
 			$ts = $dbSchema->fetchAll(PDO::FETCH_COLUMN);
 			if (!count($ts)) $ts = false;
 
-			// trim out the prefix
-			if ($this->prefix && !empty($ts))
+			foreach($ts as $i=>$val)
 			{
-				foreach($ts as $i=>$val)
-				{
-					$val = substr($val,strlen($this->prefix));
-					$ts[$i] = $val;
-				}
+				$ts[$i] = $val;
 			}
-			$this->tableSchema[$tableName] = $ts;
+
+			$this->tableColumns[$tableName] = $ts;
 		}
-		return($this->tableSchema[$tableName]);
+		return($this->tableColumns[$tableName]);
 	}
 
 	/**
@@ -966,6 +962,7 @@ class Norm
 	 */
 	private function buildType($table,$col,$v)
 	{
+		// We could elaborate this function for a little better datatype accomodation .. 
 		$Q = '';
 		if (is_int($v)) 								$Q .= "`{$table}_{$col}` int not null,";
 		else if (is_float($v)) 							$Q .= "`{$table}_{$col}` float not null,";
@@ -1008,7 +1005,7 @@ class Norm
 			$diff = $this->compareSchemas($v,$dbSchema,array($tableName.'_id',$tableName.'_updated'));
 			foreach($diff as $x=>$k)
 			{
-				$Q="ALTER TABLE `{$tableName}` ADD ".$this->buildType($tableName,$k,$objVars[$k]);
+				$Q="ALTER TABLE `{$this->prefix}{$tableName}` ADD ".$this->buildType($tableName,$k,$objVars[$k]);
 				$Q = rtrim($Q,',');
 				if (strlen($lastCol)) $Q.=" AFTER `{$lastCol}`";
 			}
