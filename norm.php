@@ -57,6 +57,18 @@ class Norm
 	const FULL		= 1;
 
 	/**
+	 * Whether or not to skip null fields when "storing" 
+     * @var SKIP_NULL
+     */
+	const SKIP_NULL	= 1;
+
+	/**
+	 * Whether or not to STORE null fields when "storing" 
+     * @var STORE_NULL
+     */
+	const STORE_NULL	= 1;
+
+	/**
 	 * Return types for the setResultsGetMode()
 	 * @var AS_INDEXED Default return type, as heirarchical index
 	 * @see get() index()
@@ -558,12 +570,12 @@ class Norm
 	/**
 	 * Stores the data objects and any relationships into the database use it for both inserts and updates.  Norm will decide.
 	 * @param object $obj this is the object with any arrays of objects connected to it
-	 * @param bool $ignoreNull if a field is null, don't assign it's value to the database when updating
+	 * @param bool $skipNull if a field is null, don't assign it's value to the database when updating
 	 * @access public
 	 * @returns object
      * @see get() del() tie()
 	 */
-	public function store($obj,$ignoreNull = 1)
+	public function store($obj,$skipNull = SKIP_NULL)
 	{
 		$tableName	= self::getClass($obj);
 		if (!strlen($tableName)) 
@@ -578,7 +590,9 @@ class Norm
 		{
 			foreach($objVars as $k=>$val)
 			{
-				if ($ignoreNull && $val == null) { unset($objVars[$k]); continue; }
+				// Skip null fields
+				if ($skipNull && $val == null) { unset($objVars[$k]); continue; }
+
 				// perhaps change this to mean 1:1?
 				// Allows me to store just direct object
 				if (is_object($objVars[$k]))
