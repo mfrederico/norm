@@ -345,11 +345,12 @@ class Norm
 
 		// Delete all my relationships
 		$this->getRelatedTables($tableName);
+
 		if (!empty($this->relatedTables[$tableName]))
 		{
 			foreach(array_keys($this->relatedTables[$tableName]) as $joinTable)
 			{
-				$Q = "DELETE FROM {$this->prefix}{$joinTable}_{$tableName} WHERE {$joinTable}_{$tableName}_{$tableName}_id='{$obj->id}'";
+				$Q = "DELETE FROM {$this->prefix}{$tableName}_{$joinTable} WHERE {$tableName}_{$joinTable}_{$tableName}_id='{$obj->id}'";
 				$data = self::$link->prepare($Q);
 				$data->execute();
 			}
@@ -408,6 +409,7 @@ class Norm
      */
     private function parseWhere($fromObj)
     {
+		$WHERE		= '';
         $mainTable  = self::getClass($fromObj);
         $objVars    = get_object_vars($fromObj);
         // This develops our WHERE clause from our own passed object
@@ -509,9 +511,13 @@ class Norm
 		$this->results = $data->fetchAll();
 
 		// Sets the results expectations
-		if		($this->resultsGetMode == 0) return(self::index($this->results));	
-		else if ($this->resultsGetMode == 1) return($this->results);
-		else if ($this->resultsGetMode == 2) return($this);
+		if (!empty($this->results))
+		{
+			if		($this->resultsGetMode == 0) return(self::index($this->results));	
+			else if ($this->resultsGetMode == 1) return($this->results);
+			else if ($this->resultsGetMode == 2) return($this);
+		}
+		else return(false);
 	}
 
 	
@@ -743,7 +749,7 @@ class Norm
 				foreach($data as $k=>$v)
 				{
 					// Make sure we aren't putting a "comment" inside of a "comment"
-                    if (is_array($tblVars[$k]) && $k != $tbl)
+                    if (@is_array($tblVars[$k]) && $k != $tbl)
 					{
 						$tblVars[$tbl][$col_id][$k] = $tblVars[$k];
 						unset($tblVars[$k]);
@@ -823,13 +829,13 @@ class Norm
 
 	/**
 	 * Finds any of the tables that are associated with a particular table
+     * Removes "table prefixes" from the tables as well.
 	 * @param string $table the name of the table to get associations
 	 * @returns array or null
 	 * @access private
 	 */
 	private function getRelatedTables($table)
 	{
-		$related	= array();
 		$i			= 0;
 		$tableList	= $this->getTableList();
 
@@ -838,11 +844,11 @@ class Norm
 			// get initial lookp tables
 			foreach($tableList as $idx=>$tbl)
 			{
-				@list($thisObj,$has) = explode('_',$tbl);
-				if (in_array($has,$this->getTablelist())) $related[$has][$thisObj] = 1;
+				$tbl = str_replace($this->prefix,'',$tbl);
+				@list($thisObj,$hasA) = explode('_',$tbl);
+				if ($thisObj == $table && !empty($hasA)) $this->relatedTables[$thisObj][$hasA] = 1;
 			}
 		}
-		$this->relatedTables = $related;
 		
 		if (!empty($this->relatedTables[$table])) return($this->relatedTables[$table]);
 		else return(null);
@@ -852,12 +858,14 @@ class Norm
 	 * Gets a list of tables from this database connection
 	 * @returns array
 	 * @access private
+	 * @todo Only get list that contains table_prefix
 	 */
 	private function getTableList()
 	{
 		if (empty($this->tableList))
 		{
 			$Q="SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
+
 			$dbSchema = self::$link->prepare($Q);
 			$dbSchema->execute();
 
