@@ -398,6 +398,36 @@ class Norm
 		return($this);
 	}
 
+
+    /**
+     * recursive parses objects to create where claused based upon what is set/passed in get
+     * @param mixed $objVars objects to specify column attributes
+     * @access private
+     * @returns string
+     * @see get() del()
+     */
+    private function parseWhere($fromObj)
+    {
+        $mainTable  = self::getClass($fromObj);
+        $objVars    = get_object_vars($fromObj);
+        // This develops our WHERE clause from our own passed object
+        if (!empty($objVars)) foreach($objVars as $k=>$v)
+        {
+            if (!empty($v))
+            {
+                if (strlen($WHERE)) $WHERE .= " AND ";
+                if (is_object($v))
+                {
+                    $WHERE .= self::parseWhere($v);
+                }
+                //if (is_array($v) ... 
+                else $WHERE .= "{$mainTable}_{$k}='{$v}' ";
+            }
+        }
+        return($WHERE);
+    }
+
+
 	/**
 	 * Returns an object hierarchy from the database - Norm does it's best to 
 	 * return all references to this object as well.  Get is an ending method
@@ -438,15 +468,7 @@ class Norm
 			}
 		}
 	
-		// This develops our WHERE clause from our own passed object
-		if (!empty($objVars)) foreach($objVars as $k=>$v) 
-		{
-			if (!empty($v))
-			{
-				if (strlen($WHERE)) $WHERE .= " AND ";
-				$WHERE .= "{$tableName}_{$k}='{$v}' ";
-			}
-		}
+		$WHERE = $this->parseWhere($fromObj);
 
 		// This builds any extra AND clauses
 		if (!empty($this->whereVars)) foreach($this->whereVars as $k=>$v) 
