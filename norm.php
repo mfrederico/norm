@@ -577,6 +577,7 @@ class Norm
 	 */
 	public function store($obj,$skipNull = 1)
 	{
+
 		$tableName	= self::getClass($obj);
 		if (!strlen($tableName)) 
 		{
@@ -597,7 +598,7 @@ class Norm
 				// Allows me to store just direct object
 				if (is_object($objVars[$k]))
 				{
-					$this->store($obj->$k);
+					$this->store($obj->$k,$skipNull);
 					$tieThese[] = array($obj,$obj->$k);
 					unset($objVars[$k]);
 					unset($obj->$k);
@@ -913,18 +914,22 @@ class Norm
 		if (!strlen($tableName)) return(false);
 		if (empty($this->tableColumns[$tableName]))
 		{
-			$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
+			$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$this->prefix}{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
 			$dbSchema = self::$link->prepare($Q);
 			$dbSchema->execute();
 
 			$ts = $dbSchema->fetchAll(PDO::FETCH_COLUMN);
-			if (!count($ts)) $ts = false;
-
-			foreach($ts as $i=>$val)
+			if (!count($ts)) 
 			{
-				$ts[$i] = $val;
+				$ts = array();
 			}
-
+			else
+			{
+				foreach($ts as $i=>$val)
+				{
+					$ts[$i] = $val;
+				}
+			}
 			$this->tableColumns[$tableName] = $ts;
 		}
 		return($this->tableColumns[$tableName]);
