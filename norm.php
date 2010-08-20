@@ -3,7 +3,7 @@
 //============================================================+
 // Norm - Not an ORM                 
 //-------------------------------------
-// Version          : 1.1.2
+// Version          : 1.1.3
 // Author           : Matthew Frederico          
 // License          : Whichever GPL works best for you
 //-------------------------------------
@@ -43,7 +43,7 @@
  * @author Matthew Frederico
  * @link http://www.ultrize.com/norm/
  * @license http://www.gnu.org/copyleft/lesser.html LGPL
- * @version 1.1.2
+ * @version 1.1.3
  * @copyright Copyright 2010 Matthew Frederico - ultrize.com
  * @package Norm
  */
@@ -202,39 +202,6 @@ class Norm
     }
 
 	/**
-	 * Think: my $iceCream_obj1 has "N" $flavors_obj2
-     * for now, just references tieMany
-	 * @param object $obj1 this is the parent object
-	 * @param object $obj2 this is the object that the parent will 
-	 * @access public
-	 * @returns object 
-	 * @see tieMany() store()
-	 */
-	public function tie($obj1,$obj2,$opt='')
-	{
-		return($this->tieMany($obj1,$obj2,$opt));
-
-		// This fails with current implementation .. 
-		// Default behavior to tie many if we have an array of objects
-		/*
-		if (is_array($obj2))  return($this->tieMany($obj1,$obj2,$opt));
-		
-		$t1	= get_class($obj1);
-		$t2	= get_class($obj2);
-
-		$this->store($obj2);
-		$var = "{$t2}_id";
-		$obj1->$var = $obj2->id;
-
-		$this->store($obj1);
-
-		if (!strlen($opt)) $opt = "{$t1}.id={$t2}.id";
-
-		return($this);
-		*/
-	}
-
-	/**
 	 * Allows you to set the table prefix
 	 * @param string $prefix prefix for the table
 	 * @access public
@@ -251,11 +218,12 @@ class Norm
 	 * Ties an array of objects together
 	 * @param object $obj1 this is the parent object
 	 * @param array $objArrays this is the array of objects 
+	 * @param int $skipNull skip null fields (passthrough for store())
 	 * @access public
 	 * @returns object 
-	 * @see tie()
+	 * @see store()
 	 */
-	public function tieMany($obj1,$objArrays = array(),$opt='')
+	public function tie($obj1,$objArrays = array(),$skipNull=1)
 	{
 		// Make sure we have an array of objects
 		if (!is_array($objArrays)) 
@@ -296,7 +264,7 @@ class Norm
 		// Now store the data into the lookup table for each object
 		foreach($objArrays as $obj2)
 		{
-			$tmp = $this->store($obj2);
+			$tmp = $this->store($obj2,$skipNull);
 			if (isset($obj1->id) && isset($obj2->id))
 			{
 				$Q="INSERT INTO {$this->prefix}{$tableName} SET `{$tableName}_{$var1}`='{$obj1->id}', `{$tableName}_{$var2}`='{$obj2->id}'";
@@ -441,6 +409,111 @@ class Norm
         return($WHERE);
     }
 
+	/**
+	 * Reverse map 
+	 * @param string $tableName name of child table to map from
+	 * @return array
+	 * see getParentOf()
+	**/
+	private function revMap($tableName)
+	{
+		$this->getMaps();
+		foreach($this->maps as $k=>$a)
+		{
+			if (in_array($tableName,$a)) 
+			{
+				/*
+				if ($this->maps[$k]) $parent[$tableName] = $this->revMap($k);
+				else
+					$parent[$tableName] = $k;
+				*/
+				if ($this->maps[$k]) $parent = $this->getMaps($k);
+			}
+		}
+		return($parent);
+	}
+
+
+	/**
+	 * Returns an string containing any "WHERE or AND" clauses
+	 * @param object $fromObj This is the child object
+	 * @param string $cols CSV of column names - in the format "classname_column1,classname_column2 .. "
+	 * @access public
+	 * @returns array
+     * @see where() del() reduceTables() index()
+	 */
+	private function appendOpts($obj)
+	{
+		$ORDER	= '';
+		$WHERE	= '';
+		$AND	= '';
+		$Q		= '';
+
+		$WHERE = $this->parseWhere($obj);
+
+		// This builds any extra AND clauses
+		if (!empty($this->whereVars)) foreach($this->whereVars as $k=>$v) 
+		{
+			foreach($v as $kn=>$vl) 
+			{
+				if (!empty($vl))
+				{
+					if (!is_array($vl)) $AND .= "AND {$k}_{$kn}='{$vl}' ";
+					else 
+					{
+						// This allows for arrays of id's for example..  $t->id = array(1,2,3,4,...)
+						$AND .= "AND {$k}_{$kn} IN('".join("','",$vl)."') ";
+					}
+				}
+			}
+		}
+
+		// This builds any ORDER clauses
+		if (!empty($this->orderVars)) foreach($this->orderVars as $v) 
+		{
+			if (!empty($v)) $ORDER .= "{$v},";
+		}
+		if (strlen($ORDER)) 
+		{
+			$ORDER = rtrim($ORDER,',');
+			$ORDER = "ORDER BY {$ORDER} {$this->orderDir}";
+		}
+
+		// Put it all together
+		$Q .= " WHERE {$WHERE}";
+		if (empty($WHERE)) $Q .= '1';
+		$Q .= " {$AND}";
+		$Q .= " {$ORDER}";
+
+		// Release the query parameters
+		$this->orderVars	= '';
+		$this->orderDir		= '';
+		$this->whereVars	= '';
+		return($Q);
+	}
+
+	/**
+	 * Returns an object hierarchy from a particular child up to parent
+	 * @param object $fromObj This is the child object
+	 * @param string $cols CSV of column names - in the format "classname_column1,classname_column2 .. "
+	 * @access public
+	 * @returns array
+     * @see where() del() reduceTables() index()
+	 */
+	public function getParentOf($childObj)
+	{
+		if (is_object($childObj))	$tableName	= self::getClass($childObj);
+		else						return(false);
+
+		$this->getMaps();
+		foreach($this->maps as $k=>$a) if (in_array($tableName,$a)) $parent = $k;
+
+		$Q="SELECT * FROM {$this->prefix}{$tableName} JOIN {$this->prefix}{$parent}_{$tableName} ON ({$parent}_{$tableName}_{$tableName}_id={$tableName}_id) JOIN {$this->prefix}{$parent} ON ({$parent}_id={$parent}_{$tableName}_{$parent}_id)";
+
+		$Q .= $this->appendOpts($childObj);
+
+		return($this->rawGet($Q));	
+	}
 
 	/**
 	 * Returns an object hierarchy from the database - Norm does it's best to 
@@ -454,9 +527,6 @@ class Norm
 	 */
 	public function get($fromObj,$cols = '*',$getSet = 1)
 	{
-		$ORDER	= '';
-		$WHERE	= '';
-		$AND	= '';
 		$cols=strtolower($cols);
 		$getCols = explode(',',$cols);
 		
@@ -482,54 +552,10 @@ class Norm
 			}
 		}
 	
-		$WHERE = $this->parseWhere($fromObj);
+		$Q .= $this->appendOpts($fromObj);;
 
-		// This builds any extra AND clauses
-		if (!empty($this->whereVars)) foreach($this->whereVars as $k=>$v) 
-		{
-			foreach($v as $kn=>$vl) 
-			{
-				if (!empty($vl)) $AND .= "AND {$k}_{$kn}='{$vl}' ";
-			}
-		}
+		return($this->rawGet($Q));
 
-		// This builds any ORDER clauses
-		if (!empty($this->orderVars)) foreach($this->orderVars as $v) 
-		{
-			if (!empty($v)) $ORDER .= "{$v},";
-		}
-		if (strlen($ORDER)) 
-		{
-			$ORDER = rtrim($ORDER,',');
-			$ORDER = "ORDER BY {$ORDER} {$this->orderDir}";
-		}
-
-		// Put it all together
-		$Q .= " WHERE {$WHERE}";
-		if (empty($WHERE)) $Q .= '1';
-		$Q .= " {$AND}";
-		$Q .= " {$ORDER}";
-
-		// Release the query parameters
-		$this->orderVars	= '';
-		$this->orderDir		= '';
-		$this->whereVars	= '';
-
-		$data = self::$link->prepare($Q);
-		$data->execute();
-
-		$data->setFetchMode(PDO::FETCH_ASSOC);
-
-		$this->results = $data->fetchAll();
-
-		// Sets the results expectations
-		if (!empty($this->results))
-		{
-			if		($this->resultsGetMode == 0) return(self::index($this->results));	
-			else if ($this->resultsGetMode == 1) return($this->results);
-			else if ($this->resultsGetMode == 2) return($this);
-		}
-		else return(false);
 	}
 
 	
@@ -564,7 +590,14 @@ class Norm
 		$data->setFetchMode(PDO::FETCH_ASSOC);
 		$this->results = $data->fetchAll();
 
-		return($this);
+		// Sets the results expectations
+		if (!empty($this->results))
+		{
+			if		($this->resultsGetMode == 0) return(self::index($this->results));	
+			else if ($this->resultsGetMode == 1) return($this->results);
+			else if ($this->resultsGetMode == 2) return($this);
+		}
+		else return(false);
 	}
 
 	/**
@@ -617,7 +650,7 @@ class Norm
 			}
 		}
 
-		// Auto calibrate the database
+		// Auto calibrate the database (Make this toggleable))
 		$set = self::buildSet($tableName,$objVars);
 		if (strlen($set))
 		{
@@ -654,9 +687,9 @@ class Norm
 		if (!empty($tieThese)) foreach ($tieThese as $objs) 
 		{
 			if (is_object($objs[0]) && is_object($objs[1]))
-				$this->tie($objs[0],$objs[1]);
+				$this->tie($objs[0],$objs[1],$skipNull);
 		}
-		if (!empty($objArrays)) $this->tie($obj,$objArrays);
+		if (!empty($objArrays)) $this->tie($obj,$objArrays,$skipNull);
 
 		return($this);
 	}
@@ -693,6 +726,12 @@ class Norm
 	{
 		$this->resultsGetMode = $mode;
 		return($this);
+	}
+
+	// Alias
+	public function setGetMode($mode = 0)
+	{
+		return($this->setResultsGetMode($mode));
 	}
 
 	/**
@@ -1033,10 +1072,7 @@ class Norm
 		else
 		{
 			$Q="CREATE TABLE IF NOT EXISTS `{$this->prefix}{$tableName}` (`{$tableName}_id` int(11) unsigned not null primary key auto_increment,";
-			foreach($objVars as $k=>$v)
-			{
-				$Q .= $this->buildType($tableName,$k,$v);
-			}
+			foreach($objVars as $k=>$v) $Q .= $this->buildType($tableName,$k,$v);
 			$Q .= $tableName.'_updated timestamp not null default now())';
 		}
 		return($Q);

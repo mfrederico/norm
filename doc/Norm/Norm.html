@@ -26,7 +26,7 @@
         		<!-- ========== Info from phpDoc block ========= -->
 	<ul class="tags">
 				<li><span class="field">author:</span> Matthew Frederico</li>
-				<li><span class="field">version:</span> 1.1.2</li>
+				<li><span class="field">version:</span> 1.1.3</li>
 				<li><span class="field">copyright:</span> Copyright 2010 Matthew Frederico - ultrize.com</li>
 				<li><span class="field">link:</span> <a href="http://www.ultrize.com/norm/">http://www.ultrize.com/norm/</a></li>
 				<li><span class="field">license:</span> <a href="http://www.gnu.org/copyleft/lesser.html">LGPL</a></li>
@@ -80,6 +80,16 @@
 								<div class="const-title">
 					<img src="../media/images/Constant.png" alt=" " />
 					<a href="#SINGLE" title="details" class="const-name">SINGLE</a> = 					<span class="var-type"> 0</span>
+
+				</div>
+								<div class="const-title">
+					<img src="../media/images/Constant.png" alt=" " />
+					<a href="#SKIP_NULL" title="details" class="const-name">SKIP_NULL</a> = 					<span class="var-type"> 1</span>
+
+				</div>
+								<div class="const-title">
+					<img src="../media/images/Constant.png" alt=" " />
+					<a href="#STORE_NULL" title="details" class="const-name">STORE_NULL</a> = 					<span class="var-type"> 0</span>
 
 				</div>
 							</div>
@@ -170,21 +180,26 @@
 		</div>
 		<div class="info-box-body">			
 			<div class="method-summary">
-																																																																																																																				
+																																																																																																																												
 												<div class="method-definition">
-											<span class="method-result">object</span>
-										<a href="#__construct" title="details" class="method-name">__construct</a>
-											(<span class="var-type">string</span>&nbsp;<span class="var-name">$dsn</span>, [<span class="var-type">string</span>&nbsp;<span class="var-name">$user</span> = <span class="var-default">null</span>], [<span class="var-type">string</span>&nbsp;<span class="var-name">$pass</span> = <span class="var-default">null</span>], [<span class="var-type">string</span>&nbsp;<span class="var-name">$attr</span> = <span class="var-default">null</span>])
-									</div>
-																<div class="method-definition">
 											<span class="method-result">object</span>
 										<a href="#del" title="details" class="method-name">del</a>
 											(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj</span>)
 									</div>
 																<div class="method-definition">
+											<span class="method-result">object</span>
+										<a href="#__construct" title="details" class="method-name">__construct</a>
+											(<span class="var-type">string</span>&nbsp;<span class="var-name">$dsn</span>, [<span class="var-type">string</span>&nbsp;<span class="var-name">$user</span> = <span class="var-default">null</span>], [<span class="var-type">string</span>&nbsp;<span class="var-name">$pass</span> = <span class="var-default">null</span>], [<span class="var-type">string</span>&nbsp;<span class="var-name">$attr</span> = <span class="var-default">null</span>])
+									</div>
+																<div class="method-definition">
 											<span class="method-result">array</span>
 										<a href="#get" title="details" class="method-name">get</a>
 											(<span class="var-type">object</span>&nbsp;<span class="var-name">$fromObj</span>, [<span class="var-type">string</span>&nbsp;<span class="var-name">$cols</span> = <span class="var-default">'*'</span>], [<span class="var-type">bool</span>&nbsp;<span class="var-name">$getSet</span> = <span class="var-default">1</span>])
+									</div>
+																<div class="method-definition">
+											<span class="method-result">array</span>
+										<a href="#getParentOf" title="details" class="method-name">getParentOf</a>
+											(<span class="var-type"></span>&nbsp;<span class="var-name">$childObj</span>, <span class="var-type">object</span>&nbsp;<span class="var-name">$fromObj</span>, <span class="var-type">string</span>&nbsp;<span class="var-name">$cols</span>)
 									</div>
 																<div class="method-definition">
 											<span class="method-result">array</span>
@@ -207,6 +222,11 @@
 											(<span class="var-type">string</span>&nbsp;<span class="var-name">$Q</span>)
 									</div>
 																<div class="method-definition">
+											<span class="method-result">void</span>
+										<a href="#setGetMode" title="details" class="method-name">setGetMode</a>
+											([<span class="var-type"></span>&nbsp;<span class="var-name">$mode</span> = <span class="var-default">0</span>])
+									</div>
+																<div class="method-definition">
 											<span class="method-result">object</span>
 										<a href="#setResultsGetMode" title="details" class="method-name">setResultsGetMode</a>
 											([<span class="var-type">bool</span>&nbsp;<span class="var-name">$mode</span> = <span class="var-default">0</span>])
@@ -219,7 +239,7 @@
 																<div class="method-definition">
 											<span class="method-result">object</span>
 										<a href="#store" title="details" class="method-name">store</a>
-											(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj</span>, [<span class="var-type">bool</span>&nbsp;<span class="var-name">$ignoreNull</span> = <span class="var-default">1</span>])
+											(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj</span>, [<span class="var-type">bool</span>&nbsp;<span class="var-name">$skipNull</span> = <span class="var-default">1</span>])
 									</div>
 																<div class="method-definition">
 											<span class="method-result">object</span>
@@ -229,12 +249,7 @@
 																<div class="method-definition">
 											<span class="method-result">object</span>
 										<a href="#tie" title="details" class="method-name">tie</a>
-											(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj1</span>, <span class="var-type">object</span>&nbsp;<span class="var-name">$obj2</span>, [<span class="var-type"></span>&nbsp;<span class="var-name">$opt</span> = <span class="var-default">''</span>])
-									</div>
-																<div class="method-definition">
-											<span class="method-result">object</span>
-										<a href="#tieMany" title="details" class="method-name">tieMany</a>
-											(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj1</span>, [<span class="var-type">array</span>&nbsp;<span class="var-name">$objArrays</span> = <span class="var-default">array()</span>], [<span class="var-type"></span>&nbsp;<span class="var-name">$opt</span> = <span class="var-default">''</span>])
+											(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj1</span>, [<span class="var-type">array</span>&nbsp;<span class="var-name">$objArrays</span> = <span class="var-default">array()</span>], [<span class="var-type">int</span>&nbsp;<span class="var-name">$skipNull</span> = <span class="var-default">1</span>])
 									</div>
 																<div class="method-definition">
 											<span class="method-result">object</span>
@@ -267,7 +282,7 @@
 		<span class="var-title">
 			<span class="var-type">dsna</span>
 			<span class="var-name">$dsna</span>
-			 = <span class="var-default"> ''</span>			(line <span class="line-number">98</span>)
+			 = <span class="var-default"> ''</span>			(line <span class="line-number">110</span>)
 		</span>
 	</div>
 
@@ -289,7 +304,7 @@
 		<span class="var-title">
 			<span class="var-type">maps</span>
 			<span class="var-name">$maps</span>
-			 = <span class="var-default">array()</span>			(line <span class="line-number">122</span>)
+			 = <span class="var-default">array()</span>			(line <span class="line-number">134</span>)
 		</span>
 	</div>
 
@@ -311,7 +326,7 @@
 		<span class="var-title">
 			<span class="var-type">orderDir</span>
 			<span class="var-name">$orderDir</span>
-			 = <span class="var-default">array()</span>			(line <span class="line-number">134</span>)
+			 = <span class="var-default">array()</span>			(line <span class="line-number">146</span>)
 		</span>
 	</div>
 
@@ -333,7 +348,7 @@
 		<span class="var-title">
 			<span class="var-type">orderVars</span>
 			<span class="var-name">$orderVars</span>
-			 = <span class="var-default">array()</span>			(line <span class="line-number">128</span>)
+			 = <span class="var-default">array()</span>			(line <span class="line-number">140</span>)
 		</span>
 	</div>
 
@@ -355,7 +370,7 @@
 		<span class="var-title">
 			<span class="var-type">pass</span>
 			<span class="var-name">$pass</span>
-			 = <span class="var-default"> ''</span>			(line <span class="line-number">92</span>)
+			 = <span class="var-default"> ''</span>			(line <span class="line-number">104</span>)
 		</span>
 	</div>
 
@@ -377,7 +392,7 @@
 		<span class="var-title">
 			<span class="var-type">prefix</span>
 			<span class="var-name">$prefix</span>
-			 = <span class="var-default"> ''</span>			(line <span class="line-number">146</span>)
+			 = <span class="var-default"> ''</span>			(line <span class="line-number">158</span>)
 		</span>
 	</div>
 
@@ -399,7 +414,7 @@
 		<span class="var-title">
 			<span class="var-type">relatedTables</span>
 			<span class="var-name">$relatedTables</span>
-			 = <span class="var-default">array()</span>			(line <span class="line-number">116</span>)
+			 = <span class="var-default">array()</span>			(line <span class="line-number">128</span>)
 		</span>
 	</div>
 
@@ -421,7 +436,7 @@
 		<span class="var-title">
 			<span class="var-type">results</span>
 			<span class="var-name">$results</span>
-			 = <span class="var-default">array()</span>			(line <span class="line-number">159</span>)
+			 = <span class="var-default">array()</span>			(line <span class="line-number">171</span>)
 		</span>
 	</div>
 
@@ -443,7 +458,7 @@
 		<span class="var-title">
 			<span class="var-type">resultsGetMode</span>
 			<span class="var-name">$resultsGetMode</span>
-			 = <span class="var-default"> 0</span>			(line <span class="line-number">153</span>)
+			 = <span class="var-default"> 0</span>			(line <span class="line-number">165</span>)
 		</span>
 	</div>
 
@@ -466,7 +481,7 @@
 		<span class="var-title">
 			<span class="var-type">tableColumns</span>
 			<span class="var-name">$tableColumns</span>
-			 = <span class="var-default">array()</span>			(line <span class="line-number">110</span>)
+			 = <span class="var-default">array()</span>			(line <span class="line-number">122</span>)
 		</span>
 	</div>
 
@@ -488,7 +503,7 @@
 		<span class="var-title">
 			<span class="var-type">tableList</span>
 			<span class="var-name">$tableList</span>
-			 = <span class="var-default">array()</span>			(line <span class="line-number">104</span>)
+			 = <span class="var-default">array()</span>			(line <span class="line-number">116</span>)
 		</span>
 	</div>
 
@@ -510,7 +525,7 @@
 		<span class="var-title">
 			<span class="var-type">user</span>
 			<span class="var-name">$user</span>
-			 = <span class="var-default"> ''</span>			(line <span class="line-number">86</span>)
+			 = <span class="var-default"> ''</span>			(line <span class="line-number">98</span>)
 		</span>
 	</div>
 
@@ -532,7 +547,7 @@
 		<span class="var-title">
 			<span class="var-type">whereVars</span>
 			<span class="var-name">$whereVars</span>
-			 = <span class="var-default">array()</span>			(line <span class="line-number">140</span>)
+			 = <span class="var-default">array()</span>			(line <span class="line-number">152</span>)
 		</span>
 	</div>
 
@@ -565,11 +580,41 @@
 		<div class="info-box-body">
 			<A NAME='method_detail'></A>
 
-<a name="method__construct" id="__construct"><!-- --></a>
+<a name="methoddel" id="del"><!-- --></a>
 <div class="oddrow">
 	
 	<div class="method-header">
-		<span class="method-title">Constructor __construct</span> (line <span class="line-number">176</span>)
+		<span class="method-title">del</span> (line <span class="line-number">318</span>)
+	</div> 
+	
+	<!-- ========== Info from phpDoc block ========= -->
+<p class="short-description">Deletes an object hierarchy from the database - Norm does it's best to  delete all references to this object as well.</p>
+	<ul class="tags">
+				<li><span class="field">see:</span> <a href="../Norm/Norm.html#methodget">Norm::get()</a></li>
+				<li><span class="field">access:</span> public</li>
+			</ul>
+	
+	<div class="method-signature">
+		<span class="method-result">object</span>
+		<span class="method-name">
+			del
+		</span>
+					(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj</span>)
+			</div>
+	
+			<ul class="parameters">
+					<li>
+				<span class="var-type">object</span>
+				<span class="var-name">$obj</span><span class="var-description">: This is the object to delete.</span>			</li>
+				</ul>
+		
+			
+	</div>
+<a name="method__construct" id="__construct"><!-- --></a>
+<div class="evenrow">
+	
+	<div class="method-header">
+		<span class="method-title">Constructor __construct</span> (line <span class="line-number">188</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -602,41 +647,11 @@
 		
 			
 	</div>
-<a name="methoddel" id="del"><!-- --></a>
-<div class="evenrow">
-	
-	<div class="method-header">
-		<span class="method-title">del</span> (line <span class="line-number">338</span>)
-	</div> 
-	
-	<!-- ========== Info from phpDoc block ========= -->
-<p class="short-description">Deletes an object hierarchy from the database - Norm does it's best to  delete all references to this object as well.</p>
-	<ul class="tags">
-				<li><span class="field">see:</span> <a href="../Norm/Norm.html#methodget">Norm::get()</a></li>
-				<li><span class="field">access:</span> public</li>
-			</ul>
-	
-	<div class="method-signature">
-		<span class="method-result">object</span>
-		<span class="method-name">
-			del
-		</span>
-					(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj</span>)
-			</div>
-	
-			<ul class="parameters">
-					<li>
-				<span class="var-type">object</span>
-				<span class="var-name">$obj</span><span class="var-description">: This is the object to delete.</span>			</li>
-				</ul>
-		
-			
-	</div>
 <a name="methodget" id="get"><!-- --></a>
 <div class="oddrow">
 	
 	<div class="method-header">
-		<span class="method-title">get</span> (line <span class="line-number">443</span>)
+		<span class="method-title">get</span> (line <span class="line-number">528</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -669,11 +684,47 @@
 		
 			
 	</div>
-<a name="methodindex" id="index"><!-- --></a>
+<a name="methodgetParentOf" id="getParentOf"><!-- --></a>
 <div class="evenrow">
 	
 	<div class="method-header">
-		<span class="method-title">index</span> (line <span class="line-number">725</span>)
+		<span class="method-title">getParentOf</span> (line <span class="line-number">503</span>)
+	</div> 
+	
+	<!-- ========== Info from phpDoc block ========= -->
+<p class="short-description">Returns an object hierarchy from a particular child up to parent</p>
+	<ul class="tags">
+				<li><span class="field">see:</span> where() del() reduceTables() index()</li>
+				<li><span class="field">access:</span> public</li>
+			</ul>
+	
+	<div class="method-signature">
+		<span class="method-result">array</span>
+		<span class="method-name">
+			getParentOf
+		</span>
+					(<span class="var-type"></span>&nbsp;<span class="var-name">$childObj</span>, <span class="var-type">object</span>&nbsp;<span class="var-name">$fromObj</span>, <span class="var-type">string</span>&nbsp;<span class="var-name">$cols</span>)
+			</div>
+	
+			<ul class="parameters">
+					<li>
+				<span class="var-type">object</span>
+				<span class="var-name">$fromObj</span><span class="var-description">: This is the child object</span>			</li>
+					<li>
+				<span class="var-type">string</span>
+				<span class="var-name">$cols</span><span class="var-description">: CSV of column names - in the format &quot;classname_column1,classname_column2 .. &quot;</span>			</li>
+					<li>
+				<span class="var-type"></span>
+				<span class="var-name">$childObj</span>			</li>
+				</ul>
+		
+			
+	</div>
+<a name="methodindex" id="index"><!-- --></a>
+<div class="oddrow">
+	
+	<div class="method-header">
+		<span class="method-title">index</span> (line <span class="line-number">779</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -703,10 +754,10 @@
 			
 	</div>
 <a name="methodorderby" id="orderby"><!-- --></a>
-<div class="oddrow">
+<div class="evenrow">
 	
 	<div class="method-header">
-		<span class="method-title">orderby</span> (line <span class="line-number">372</span>)
+		<span class="method-title">orderby</span> (line <span class="line-number">352</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -736,10 +787,10 @@
 			
 	</div>
 <a name="methodrawGet" id="rawGet"><!-- --></a>
-<div class="evenrow">
+<div class="oddrow">
 	
 	<div class="method-header">
-		<span class="method-title">rawGet</span> (line <span class="line-number">548</span>)
+		<span class="method-title">rawGet</span> (line <span class="line-number">586</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -766,10 +817,10 @@
 			
 	</div>
 <a name="methodrawPut" id="rawPut"><!-- --></a>
-<div class="oddrow">
+<div class="evenrow">
 	
 	<div class="method-header">
-		<span class="method-title">rawPut</span> (line <span class="line-number">531</span>)
+		<span class="method-title">rawPut</span> (line <span class="line-number">569</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -795,11 +846,39 @@
 		
 			
 	</div>
+<a name="methodsetGetMode" id="setGetMode"><!-- --></a>
+<div class="oddrow">
+	
+	<div class="method-header">
+		<span class="method-title">setGetMode</span> (line <span class="line-number">732</span>)
+	</div> 
+	
+	<!-- ========== Info from phpDoc block ========= -->
+	<ul class="tags">
+				<li><span class="field">access:</span> public</li>
+			</ul>
+	
+	<div class="method-signature">
+		<span class="method-result">void</span>
+		<span class="method-name">
+			setGetMode
+		</span>
+					([<span class="var-type"></span>&nbsp;<span class="var-name">$mode</span> = <span class="var-default">0</span>])
+			</div>
+	
+			<ul class="parameters">
+					<li>
+				<span class="var-type"></span>
+				<span class="var-name">$mode</span>			</li>
+				</ul>
+		
+			
+	</div>
 <a name="methodsetResultsGetMode" id="setResultsGetMode"><!-- --></a>
 <div class="evenrow">
 	
 	<div class="method-header">
-		<span class="method-title">setResultsGetMode</span> (line <span class="line-number">677</span>)
+		<span class="method-title">setResultsGetMode</span> (line <span class="line-number">725</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -829,7 +908,7 @@
 <div class="oddrow">
 	
 	<div class="method-header">
-		<span class="method-title">setTablePrefix</span> (line <span class="line-number">232</span>)
+		<span class="method-title">setTablePrefix</span> (line <span class="line-number">211</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -859,7 +938,7 @@
 <div class="evenrow">
 	
 	<div class="method-header">
-		<span class="method-title">store</span> (line <span class="line-number">566</span>)
+		<span class="method-title">store</span> (line <span class="line-number">611</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -874,7 +953,7 @@
 		<span class="method-name">
 			store
 		</span>
-					(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj</span>, [<span class="var-type">bool</span>&nbsp;<span class="var-name">$ignoreNull</span> = <span class="var-default">1</span>])
+					(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj</span>, [<span class="var-type">bool</span>&nbsp;<span class="var-name">$skipNull</span> = <span class="var-default">1</span>])
 			</div>
 	
 			<ul class="parameters">
@@ -883,7 +962,7 @@
 				<span class="var-name">$obj</span><span class="var-description">: this is the object with any arrays of objects connected to it</span>			</li>
 					<li>
 				<span class="var-type">bool</span>
-				<span class="var-name">$ignoreNull</span><span class="var-description">: if a field is null, don't assign it's value to the database when updating</span>			</li>
+				<span class="var-name">$skipNull</span><span class="var-description">: if a field is null, don't assign it's value to the database when updating</span>			</li>
 				</ul>
 		
 			
@@ -892,7 +971,7 @@
 <div class="oddrow">
 	
 	<div class="method-header">
-		<span class="method-title">stuff</span> (line <span class="line-number">313</span>)
+		<span class="method-title">stuff</span> (line <span class="line-number">293</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -930,14 +1009,13 @@
 <div class="evenrow">
 	
 	<div class="method-header">
-		<span class="method-title">tie</span> (line <span class="line-number">201</span>)
+		<span class="method-title">tie</span> (line <span class="line-number">226</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
-<p class="short-description">Think: my $iceCream_obj1 has &quot;N&quot; $flavors_obj2</p>
-<p class="description"><p>for now, just references tieMany</p></p>
+<p class="short-description">Ties an array of objects together</p>
 	<ul class="tags">
-				<li><span class="field">see:</span> tieMany() store()</li>
+				<li><span class="field">see:</span> <a href="../Norm/Norm.html#methodstore">Norm::store()</a></li>
 				<li><span class="field">access:</span> public</li>
 			</ul>
 	
@@ -946,43 +1024,7 @@
 		<span class="method-name">
 			tie
 		</span>
-					(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj1</span>, <span class="var-type">object</span>&nbsp;<span class="var-name">$obj2</span>, [<span class="var-type"></span>&nbsp;<span class="var-name">$opt</span> = <span class="var-default">''</span>])
-			</div>
-	
-			<ul class="parameters">
-					<li>
-				<span class="var-type">object</span>
-				<span class="var-name">$obj1</span><span class="var-description">: this is the parent object</span>			</li>
-					<li>
-				<span class="var-type">object</span>
-				<span class="var-name">$obj2</span><span class="var-description">: this is the object that the parent will</span>			</li>
-					<li>
-				<span class="var-type"></span>
-				<span class="var-name">$opt</span>			</li>
-				</ul>
-		
-			
-	</div>
-<a name="methodtieMany" id="tieMany"><!-- --></a>
-<div class="oddrow">
-	
-	<div class="method-header">
-		<span class="method-title">tieMany</span> (line <span class="line-number">246</span>)
-	</div> 
-	
-	<!-- ========== Info from phpDoc block ========= -->
-<p class="short-description">Ties an array of objects together</p>
-	<ul class="tags">
-				<li><span class="field">see:</span> <a href="../Norm/Norm.html#methodtie">Norm::tie()</a></li>
-				<li><span class="field">access:</span> public</li>
-			</ul>
-	
-	<div class="method-signature">
-		<span class="method-result">object</span>
-		<span class="method-name">
-			tieMany
-		</span>
-					(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj1</span>, [<span class="var-type">array</span>&nbsp;<span class="var-name">$objArrays</span> = <span class="var-default">array()</span>], [<span class="var-type"></span>&nbsp;<span class="var-name">$opt</span> = <span class="var-default">''</span>])
+					(<span class="var-type">object</span>&nbsp;<span class="var-name">$obj1</span>, [<span class="var-type">array</span>&nbsp;<span class="var-name">$objArrays</span> = <span class="var-default">array()</span>], [<span class="var-type">int</span>&nbsp;<span class="var-name">$skipNull</span> = <span class="var-default">1</span>])
 			</div>
 	
 			<ul class="parameters">
@@ -993,17 +1035,17 @@
 				<span class="var-type">array</span>
 				<span class="var-name">$objArrays</span><span class="var-description">: this is the array of objects</span>			</li>
 					<li>
-				<span class="var-type"></span>
-				<span class="var-name">$opt</span>			</li>
+				<span class="var-type">int</span>
+				<span class="var-name">$skipNull</span><span class="var-description">: skip null fields (passthrough for store())</span>			</li>
 				</ul>
 		
 			
 	</div>
 <a name="methodwhere" id="where"><!-- --></a>
-<div class="evenrow">
+<div class="oddrow">
 	
 	<div class="method-header">
-		<span class="method-title">where</span> (line <span class="line-number">388</span>)
+		<span class="method-title">where</span> (line <span class="line-number">368</span>)
 	</div> 
 	
 	<!-- ========== Info from phpDoc block ========= -->
@@ -1048,14 +1090,14 @@
 					</div>
 		<div class="info-box-body">
 			<a name="constAS_ARRAY" id="AS_ARRAY"><!-- --></A>
-<div class="oddrow">
+<div class="evenrow">
 
 	<div class="const-header">
 		<img src="../media/images/Variable.png" />
 		<span class="const-title">
 			<span class="const-name">AS_ARRAY</span>
 			 = <span class="const-default"> 1</span>
-			(line <span class="line-number">71</span>)
+			(line <span class="line-number">83</span>)
 		</span>
 	</div>
 
@@ -1069,14 +1111,14 @@
 	
 </div>
 <a name="constAS_INDEXED" id="AS_INDEXED"><!-- --></A>
-<div class="evenrow">
+<div class="oddrow">
 
 	<div class="const-header">
 		<img src="../media/images/Variable.png" />
 		<span class="const-title">
 			<span class="const-name">AS_INDEXED</span>
 			 = <span class="const-default"> 0</span>
-			(line <span class="line-number">64</span>)
+			(line <span class="line-number">76</span>)
 		</span>
 	</div>
 
@@ -1090,14 +1132,14 @@
 	
 </div>
 <a name="constAS_OBJECT" id="AS_OBJECT"><!-- --></A>
-<div class="oddrow">
+<div class="evenrow">
 
 	<div class="const-header">
 		<img src="../media/images/Variable.png" />
 		<span class="const-title">
 			<span class="const-name">AS_OBJECT</span>
 			 = <span class="const-default"> 2</span>
-			(line <span class="line-number">78</span>)
+			(line <span class="line-number">90</span>)
 		</span>
 	</div>
 
@@ -1111,7 +1153,7 @@
 	
 </div>
 <a name="constFULL" id="FULL"><!-- --></A>
-<div class="evenrow">
+<div class="oddrow">
 
 	<div class="const-header">
 		<img src="../media/images/Variable.png" />
@@ -1127,7 +1169,7 @@
 	
 </div>
 <a name="constSINGLE" id="SINGLE"><!-- --></A>
-<div class="oddrow">
+<div class="evenrow">
 
 	<div class="const-header">
 		<img src="../media/images/Variable.png" />
@@ -1146,12 +1188,46 @@
 	
 	
 </div>
+<a name="constSKIP_NULL" id="SKIP_NULL"><!-- --></A>
+<div class="oddrow">
+
+	<div class="const-header">
+		<img src="../media/images/Variable.png" />
+		<span class="const-title">
+			<span class="const-name">SKIP_NULL</span>
+			 = <span class="const-default"> 1</span>
+			(line <span class="line-number">63</span>)
+		</span>
+	</div>
+
+	<!-- ========== Info from phpDoc block ========= -->
+<p class="short-description">Whether or not to skip null fields when &quot;storing&quot;</p>
+	
+	
+</div>
+<a name="constSTORE_NULL" id="STORE_NULL"><!-- --></A>
+<div class="evenrow">
+
+	<div class="const-header">
+		<img src="../media/images/Variable.png" />
+		<span class="const-title">
+			<span class="const-name">STORE_NULL</span>
+			 = <span class="const-default"> 0</span>
+			(line <span class="line-number">69</span>)
+		</span>
+	</div>
+
+	<!-- ========== Info from phpDoc block ========= -->
+<p class="short-description">Whether or not to STORE null fields when &quot;storing&quot;</p>
+	
+	
+</div>
 						
 		</div>
 	</div>
 
 	<p class="notes" id="credit">
-		Documentation generated on Thu, 19 Aug 2010 17:08:01 -0600 by <a href="http://www.phpdoc.org" target="_blank">phpDocumentor 1.4.3</a>
+		Documentation generated on Fri, 20 Aug 2010 13:25:51 -0600 by <a href="http://www.phpdoc.org" target="_blank">phpDocumentor 1.4.3</a>
 	</p>
 	</div></body>
 </html>
