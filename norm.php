@@ -171,6 +171,12 @@ class Norm
 	public $insertId			= null;
 
 	/**
+	 * @var lastQuery Contains last query performed
+	 * @access public
+	 */
+	public $lastQuery			= '';
+
+	/**
 	 * @var results Contains flat array from the database.
 	 * @access public
 	 */
@@ -586,6 +592,7 @@ class Norm
 
 		$this->results			= $data->fetchAll();
 		$this->insertId			= self::$link->lastInsertId();
+		$this->lastQuery		= $Q;
 
 		//print_pre(self::$link->errorInfo(),true);
 
@@ -743,7 +750,8 @@ class Norm
 				// These are the relationships
 				if (count($pointers) == 4) 
 				{
-					$tblVars[$pointers[0]][$i][$pointers[1]][$values] = $values;
+					// Prevent cyclical linkage to pointing to itself in lookup tables.
+					if ($pointers[0] != $pointers[2]) $tblVars[$pointers[0]][$i][$pointers[1]][$values] = $values;
 				}
 			}
 		}
@@ -778,27 +786,24 @@ class Norm
 				foreach($data as $k=>$v)
 				{
 					// Make sure we aren't putting a "comment" inside of a "comment"
-                    if (@is_array($tblVars[$k]) && $k != $tbl)
+                    if (@is_array($v) && $k != $tbl)
 					{
-						if (is_array($v))
+						foreach($v as $vid)
 						{
-							foreach($v as $vid)
+							if (is_array($tblVars[$k][$vid]) && !empty($tblVars[$k][$vid]))
 							{
-								if (is_array($tblVars[$k][$vid])) 
-								{
-									$tblVars[$tbl][$col_id][$k][$vid] = $tblVars[$k][$vid];
-								}
+								// Graft these arrays to their ID's
+								$tblVars[$tbl][$col_id][$k][$vid] = $tblVars[$k][$vid];
 							}
-							// reindex these
-							$tblVars[$tbl][$col_id][$k] = array_values($tblVars[$tbl][$col_id][$k]);
 						}
-						else
-							$tblVars[$tbl][$col_id][$k] = $tblVars[$k];
+						// reindex these
+						if (!empty($tblVars[$tbl][$col_id][$k]) && is_array($tblVars[$tbl][$col_id][$k])) $tblVars[$tbl][$col_id][$k] = array_values($tblVars[$tbl][$col_id][$k]);
 					}
 				}
 			}
 		}
 
+		// Trim out what we've grafted
 		foreach(array_keys($tblVars) as $unsetMe) if ($unsetMe != $rootTable) unset($tblVars[$unsetMe]); 
 
 		// reindex my root table
@@ -971,26 +976,8 @@ class Norm
 			unset($dbSchema[$v]);
 		}
 
-
 		$objSchema	= array_keys($objSchema);
 		$dbSchema	= array_keys($dbSchema);
-
-		/*
-		print "<hr><pre>object schema:\n";
-		print_r($objSchema);
-		print "<b>Compared to DB:</b>";
-		print_r($dbSchema);
-
-		print "<b>Diff:</b>";
-		print_r(array_diff($objSchema,$dbSchema));
-		*/
-		/*
-		print "s1<pre>".print_r($objSchema,true)."</pre>";
-		print "s2<pre>".print_r($dbSchema,true)."</pre>";
-
-		print "diff<pre>".print_r(array_diff($objSchema,$dbSchema),true)."</pre>";
-		*/
-
 		return(array_diff($objSchema,$dbSchema));
 	}
 
