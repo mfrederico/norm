@@ -165,6 +165,12 @@ class Norm
 	protected $resultsGetMode			= 0;
 
 	/**
+	 * @var insertId Contains last insert id
+	 * @access public
+	 */
+	public $insertId			= null;
+
+	/**
 	 * @var results Contains flat array from the database.
 	 * @access public
 	 */
@@ -239,8 +245,10 @@ class Norm
 		{
 			$t2 = self::getClass($nextObj);
 
+			// Table name of the lookup table 
 			$tableName = "{$t1}_{$t2}";
 
+			// Columns for the lookup table
 			$var1 = "{$t1}_id";
 			$var2 = "{$t2}_id";
 
@@ -251,13 +259,10 @@ class Norm
 			$Q = $this->buildSet($tableName,$table);
 			if (strlen($Q))
 			{
-				$data = self::$link->prepare($Q);
-				$data->execute();
-
+				$this->query($Q);
 				// Create unique index for this lookup
 				$Q = "ALTER TABLE {$this->prefix}{$tableName} ADD unique index({$tableName}_{$var1},{$tableName}_{$var2})";
-				$data = self::$link->prepare($Q);
-				$data->execute();
+				$this->query($Q);
 			}
 		}
 
@@ -268,8 +273,7 @@ class Norm
 			if (isset($obj1->id) && isset($obj2->id))
 			{
 				$Q="INSERT INTO {$this->prefix}{$tableName} SET `{$tableName}_{$var1}`='{$obj1->id}', `{$tableName}_{$var2}`='{$obj2->id}'";
-				$data = self::$link->prepare($Q);
-				$data->execute();
+				$this->query($Q);
 			}
 			else 
 			{
@@ -331,13 +335,11 @@ class Norm
 			foreach(array_keys($this->relatedTables[$tableName]) as $joinTable)
 			{
 				$Q = "DELETE FROM {$this->prefix}{$tableName}_{$joinTable} WHERE {$tableName}_{$joinTable}_{$tableName}_id='{$obj->id}'";
-				$data = self::$link->prepare($Q);
-				$data->execute();
+				$this->query($Q);
 			}
 		}
 		$Q="DELETE FROM {$this->prefix}{$tableName} WHERE {$tableName}_id='{$obj->id}'";
-		$data = self::$link->prepare($Q);
-		$data->execute();
+		$this->query($Q);
 		return($this);
 	}
 
@@ -512,7 +514,7 @@ class Norm
 
 		$Q .= $this->appendOpts($childObj);
 
-		return($this->rawGet($Q));	
+		return($this->query($Q)->results);	
 	}
 
 	/**
@@ -554,41 +556,7 @@ class Norm
 	
 		$Q .= $this->appendOpts($fromObj);;
 
-		return($this->rawGet($Q));
-
-	}
-
-	
-	/**
-	 * Raw PUT queries for things norm may not be able to do.
-	 * @param string $Q the raw sql 
-	 * @access public
-	 * @returns object
-     * @see get() del() tie() $this->results for insert id
-	 */
-	public function rawPut($Q)
-	{
-		$data = self::$link->prepare($Q);
-		$data->execute();
-		$data->setFetchMode(PDO::FETCH_ASSOC);
-
-		$this->results = self::$link->lastInsertId();
-		return($this);
-	}
-
-	/**
-	 * Raw GET queries for things norm may not be able to do.
-	 * @param string $Q the raw sql 
-	 * @access public
-	 * @returns object
-     * @see get() del() tie() $this->results for data
-	 */
-	public function rawGet($Q)
-	{
-		$data = self::$link->prepare($Q);
-		$data->execute();
-		$data->setFetchMode(PDO::FETCH_ASSOC);
-		$this->results = $data->fetchAll();
+		$this->query($Q,PDO::FETCH_ASSOC);
 
 		// Sets the results expectations
 		if (!empty($this->results))
@@ -598,6 +566,30 @@ class Norm
 			else if ($this->resultsGetMode == 2) return($this);
 		}
 		else return(false);
+	}
+
+	
+	/**
+	 * Raw queries for things norm may not be able to do (like that would ever happen :-)
+	 * this will also allow me to log queries / responses for future caching.
+	 * @param string $Q the raw sql 
+	 * @param int PDO fetch mode
+	 * @access public
+	 * @returns object
+     * @see get() del() tie() $this->results for insert id
+	 */
+	public function query($Q,$fetchmode = PDO::FETCH_NUM)
+	{
+		$data = self::$link->prepare($Q);
+		$data->execute();
+		$data->setFetchMode($fetchmode);
+
+		$this->results			= $data->fetchAll();
+		$this->insertId			= self::$link->lastInsertId();
+
+		//print_pre(self::$link->errorInfo(),true);
+
+		return($this);
 	}
 
 	/**
@@ -652,11 +644,11 @@ class Norm
 
 		// Auto calibrate the database (Make this toggleable))
 		$set = self::buildSet($tableName,$objVars);
-		if (strlen($set))
+		if (strlen($set)) 
 		{
-			$schema = self::$link->prepare($set);
-			$schema->execute();
+			$this->query($set);
 		}
+		
 
 		if (!empty($obj->id))
 			$Q="UPDATE `{$this->prefix}{$tableName}` SET";
@@ -675,12 +667,11 @@ class Norm
 
 		if (!empty($WHERE)) $Q .= " WHERE ".join('AND',$WHERE);
 
-		$storage = self::$link->prepare($Q);
-		$storage->execute();
+		$this->query($Q);
 
 		if (empty($obj->id))
 		{
-			$lid = self::$link->lastInsertId();
+			$lid = $this->insertId;
 			if ($lid) $obj->id = $lid;
 		}
 
@@ -705,15 +696,6 @@ class Norm
 		return(strtolower(get_class($obj)));
 	}
 
-
-	private function reindex($array)
-	{
-		foreach($array as $k=>$v) 
-		{	
-			$reindexed[] = $v;
-		}
-		return($reindexed);
-	}
 
 	/**
 	 * Sets how the "get" method will return results from the db e.g: 0 indexed array,1 array, or 2 object 
@@ -761,7 +743,7 @@ class Norm
 				// These are the relationships
 				if (count($pointers) == 4) 
 				{
-					$tblVars[$pointers[0]][$i][$pointers[1]] = $values;
+					$tblVars[$pointers[0]][$i][$pointers[1]][$values] = $values;
 				}
 			}
 		}
@@ -771,12 +753,11 @@ class Norm
 	/**
 	 * indexes the results from the database into a usable assoc array 
 	 * @param array $dataset This is the returned data from PDO fetchAll()
-	 * @param bool $reindex (true) reindex the array at 0 (false) keep the indexes as the database id column of each object
 	 * @access public
 	 * @returns array
      * @see get() parseKVP()
 	 */
-	public function index($dataset,$reindex = 1)
+	public function index($dataset)
 	{
 		if (empty($dataset)) 
 		{
@@ -784,16 +765,10 @@ class Norm
 			return(null);
 		}
 
+		// Get all my table vars
 		$tblVars = $this->parseKVP($dataset);
-
-		// Reindex at 0 instead of id key
-		if ($reindex)
-		{
-			foreach($tblVars as $tbl=>$cols)
-			{
-				$tblVars[$tbl] = $this->reindex($tblVars[$tbl]);
-			}
-		}
+		$rootTable = array_pop(array_keys($tblVars));
+		
 
 		// Condense -> assign each array to it's correct structure
 		foreach($tblVars as $tbl=>$cols)
@@ -805,12 +780,31 @@ class Norm
 					// Make sure we aren't putting a "comment" inside of a "comment"
                     if (@is_array($tblVars[$k]) && $k != $tbl)
 					{
-						$tblVars[$tbl][$col_id][$k] = $tblVars[$k];
-						unset($tblVars[$k]);
+						if (is_array($v))
+						{
+							foreach($v as $vid)
+							{
+								if (is_array($tblVars[$k][$vid])) 
+								{
+									$tblVars[$tbl][$col_id][$k][$vid] = $tblVars[$k][$vid];
+								}
+							}
+							// reindex these
+							$tblVars[$tbl][$col_id][$k] = array_values($tblVars[$tbl][$col_id][$k]);
+						}
+						else
+							$tblVars[$tbl][$col_id][$k] = $tblVars[$k];
 					}
 				}
 			}
 		}
+
+		foreach(array_keys($tblVars) as $unsetMe) if ($unsetMe != $rootTable) unset($tblVars[$unsetMe]); 
+
+		// reindex my root table
+		$tblVars[$rootTable] = array_values($tblVars[$rootTable]);
+
+
 		return($tblVars);
 	}
 
@@ -841,10 +835,10 @@ class Norm
 	private function getMaps()
 	{
 		if (!empty($this->maps)) return($this->maps);
-		$tableList = $this->getTableList();
-		if (!empty($tableList))
+
+		if (!empty($this->getTableList()->tableList))
 		{
-			foreach($tableList as $tbl)
+			foreach($this->tableList as $tbl)
 			{
 				@list($main,$has) = explode('_',$tbl);
 				if (!empty($has))
@@ -919,27 +913,16 @@ class Norm
 		if (empty($this->tableList))
 		{
 			$Q="SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
+			$ts = $this->query($Q)->results;
 
-			$dbSchema = self::$link->prepare($Q);
-			$dbSchema->execute();
-
-			$ts = $dbSchema->fetchAll(PDO::FETCH_COLUMN);
-
-			// trim out the prefix
-			if (!empty($this->prefix))
+			foreach($ts as $idx=>$val)
 			{
-				foreach($ts as $i=>$val)
-				{
-					$val = substr($val,strlen($this->prefix));
-					$ts[$i] = $val;
-				}
+				if (!empty($this->prefix)) $val[0] = substr($val[0],strlen($this->prefix));
+				$this->tableList[] = $val[0];
 			}
-
-			if (!count($ts)) $ts = false;
-			$this->tableList  = $ts;
 		}
 		//asort($this->tableList);
-		return($this->tableList);
+		return($this);
 	}
 	
 	/**
@@ -954,22 +937,17 @@ class Norm
 		if (empty($this->tableColumns[$tableName]))
 		{
 			$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$this->prefix}{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
-			$dbSchema = self::$link->prepare($Q);
-			$dbSchema->execute();
+			$ts = $this->query($Q)->results;
 
-			$ts = $dbSchema->fetchAll(PDO::FETCH_COLUMN);
-			if (!count($ts)) 
-			{
-				$ts = array();
-			}
+			if (empty($ts)) $this->tableColumns[$tableName] = array();
 			else
 			{
-				foreach($ts as $i=>$val)
+				// Remove the column prefixes whilst setting the table data
+				foreach($ts as $i=>$val) 
 				{
-					$ts[$i] = $val;
+					$this->tableColumns[$tableName][] = str_replace($tableName.'_','',$val[0]);
 				}
 			}
-			$this->tableColumns[$tableName] = $ts;
 		}
 		return($this->tableColumns[$tableName]);
 	}
@@ -982,21 +960,38 @@ class Norm
 	 * @returns array
      * @see getTableSchema()
 	 */
-	private function compareSchemas($schema1,$schema2,$ignore = array())
+	private function compareSchemas($objSchema,$dbSchema,$ignore = array())
 	{
-		$schema1 = array_flip($schema1);
-		$schema2 = array_flip($schema2);
+		//$objSchema = array_flip($objSchema);
+		$dbSchema = array_flip($dbSchema);
 
 		foreach($ignore as $k=>$v)
 		{
-			unset($schema1[$v]);
-			unset($schema2[$v]);
+			unset($objSchema[$v]);
+			unset($dbSchema[$v]);
 		}
 
-		$schema1 = array_keys($schema1);
-		$schema2 = array_keys($schema2);
 
-		return(array_diff($schema1,$schema2));
+		$objSchema	= array_keys($objSchema);
+		$dbSchema	= array_keys($dbSchema);
+
+		/*
+		print "<hr><pre>object schema:\n";
+		print_r($objSchema);
+		print "<b>Compared to DB:</b>";
+		print_r($dbSchema);
+
+		print "<b>Diff:</b>";
+		print_r(array_diff($objSchema,$dbSchema));
+		*/
+		/*
+		print "s1<pre>".print_r($objSchema,true)."</pre>";
+		print "s2<pre>".print_r($dbSchema,true)."</pre>";
+
+		print "diff<pre>".print_r(array_diff($objSchema,$dbSchema),true)."</pre>";
+		*/
+
+		return(array_diff($objSchema,$dbSchema));
 	}
 
 	/**
@@ -1055,27 +1050,42 @@ class Norm
 		// check if we need to alter tables
 		if (!empty($dbSchema))
 		{
-			$v = array_keys($objVars);
-
 			// Get my last found column from db schema
-			$lastCol = $dbSchema[count($dbSchema)-2];
+			if (isset($dbSchema[count($dbSchema)-2])) $lastCol = $dbSchema[count($dbSchema)-2];
 
-			$diff = $this->compareSchemas($v,$dbSchema,array($tableName.'_id',$tableName.'_updated'));
+			$diff = $this->compareSchemas($objVars,$dbSchema,array($tableName.'_id',$tableName.'_updated'));
 			foreach($diff as $x=>$k)
 			{
+				// Should be able to return an array, and run each of these queries .. BUUUT .. for now .. 
 				$Q="ALTER TABLE `{$this->prefix}{$tableName}` ADD ".$this->buildType($tableName,$k,$objVars[$k]);
 				$Q = rtrim($Q,',');
-				if (strlen($lastCol)) $Q.=" AFTER `{$lastCol}`";
+
+				if (strlen($lastCol)) $Q.=" AFTER `{$tableName}_{$lastCol}`";
+				$this->query($Q);
+				$this->tableColumns[$tableName][] = $k;
 			}
+			return(false);
 		}
 		// Do we need to create new data table?
 		else
 		{
 			$Q="CREATE TABLE IF NOT EXISTS `{$this->prefix}{$tableName}` (`{$tableName}_id` int(11) unsigned not null primary key auto_increment,";
-			foreach($objVars as $k=>$v) $Q .= $this->buildType($tableName,$k,$v);
+			foreach($objVars as $k=>$v) 
+			{
+				$Q .= $this->buildType($tableName,$k,$v);
+				$this->tableColumns[$tableName][] = $k;
+			}
 			$Q .= $tableName.'_updated timestamp not null default now())';
 		}
 		return($Q);
+	}
+}
+
+if (!function_exists('print_pre'))
+{
+	function print_pre($dat)
+	{
+		print "<pre>".print_r($dat,true)."</pre>";
 	}
 }
 
