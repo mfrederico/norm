@@ -1,5 +1,5 @@
 <?php 
-include('../norm.class.php');
+include('../norm.php');
 include('../../norm_db_config.php');
 
 // A more complex NORM example
@@ -32,7 +32,7 @@ $N = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
 
 // Set up inheritence
 $t							= new titles();
-if (isset($_REQUEST['init']))
+if (isset($_REQUEST['init']) || $argv[1] == 'init')
 {
 	$t->name = 'movie test 1';
 
@@ -69,7 +69,7 @@ else
 {
     // Get all data linked where title id = 1
 	$t->id=1;
-	$d = $N->get($t,'*',Norm::FULL);
+	$d = $N->get($t);
 	print "<pre>";
 	print_r($d);
 }

@@ -244,12 +244,12 @@ class Norm
 			$objArrays = $nobj;
 		}
 
-		$t1	= self::getClass($obj1);
+		$t1	= self::getTableName($obj1);
 
 		// Build the lookup table
 		foreach($objArrays as $idx=>$nextObj)
 		{
-			$t2 = self::getClass($nextObj);
+			$t2 = self::getTableName($nextObj);
 
 			// Table name of the lookup table 
 			$tableName = "{$t1}_{$t2}";
@@ -283,7 +283,7 @@ class Norm
 			}
 			else 
 			{
-				trigger_error('Trying to tie objects that have no id '.self::getClass($obj1).' -> '.self::getClass($obj2).' - cannot save to database!',E_USER_NOTICE);
+				trigger_error('Trying to tie objects that have no id '.self::getTableName($obj1).' -> '.self::getTableName($obj2).' - cannot save to database!',E_USER_NOTICE);
 			}
 		}
 	}
@@ -303,7 +303,7 @@ class Norm
 	public function stuff($array,$obj,$fields = '')
 	{
 		// Get this objects name
-		$n = self::getClass($obj);
+		$n = self::getTableName($obj);
 		// convert me to an array!	
 		$fields = explode(',',$fields);
 		if (!empty($array))
@@ -328,7 +328,7 @@ class Norm
 	public function del($obj)
 	{
 		//go through each populated obj var and peform multi where clauses against it
-		$tableName	= self::getClass($obj);
+		$tableName	= self::getTableName($obj);
 		$objVars	= get_object_vars($obj);
 
 		$ts		= $this->getTableSchema($tableName);
@@ -379,10 +379,10 @@ class Norm
 		{
 			foreach($whereObjs as $whereObj) 
 			{
-				$this->whereVars[self::getClass($whereObj)] = get_object_vars($whereObj);
+				$this->whereVars[self::getTableName($whereObj)] = get_object_vars($whereObj);
 			}
 		}
-		else if (is_object($whereObjs)) $this->whereVars[self::getClass($whereObjs)] = get_object_vars($whereObjs);
+		else if (is_object($whereObjs)) $this->whereVars[self::getTableName($whereObjs)] = get_object_vars($whereObjs);
 
 		return($this);
 	}
@@ -398,7 +398,9 @@ class Norm
     private function parseWhere($fromObj)
     {
 		$WHERE		= '';
-        $mainTable  = self::getClass($fromObj);
+        $mainTable  = self::getTableName($fromObj);
+		if ($mainTable) $mainTable .= '_';
+
         $objVars    = get_object_vars($fromObj);
         // This develops our WHERE clause from our own passed object
         if (!empty($objVars)) foreach($objVars as $k=>$v)
@@ -411,7 +413,7 @@ class Norm
                     $WHERE .= self::parseWhere($v);
                 }
                 //if (is_array($v) ... 
-                else $WHERE .= "{$mainTable}_{$k}='{$v}' ";
+                else $WHERE .= "{$mainTable}{$k}='{$v}' ";
             }
         }
         return($WHERE);
@@ -510,7 +512,7 @@ class Norm
 	 */
 	public function getParentOf($childObj)
 	{
-		if (is_object($childObj))	$tableName	= self::getClass($childObj);
+		if (is_object($childObj))	$tableName	= self::getTableName($childObj);
 		else						return(false);
 
 		$this->getMaps();
@@ -538,7 +540,7 @@ class Norm
 		$cols=strtolower($cols);
 		$getCols = explode(',',$cols);
 		
-		$tableName	= self::getClass($fromObj);
+		$tableName	= self::getTableName($fromObj);
 		$objVars	= get_object_vars($fromObj);
 
 		$Q="SELECT ".join(',',$getCols)." FROM {$this->prefix}{$tableName}";
@@ -610,7 +612,7 @@ class Norm
 	public function store($obj,$skipNull = 1)
 	{
 
-		$tableName	= self::getClass($obj);
+		$tableName	= self::getTableName($obj);
 		if (!strlen($tableName)) 
 		{
 			trigger_error('Cannot store object without name!',E_USER_NOTICE);
@@ -694,13 +696,18 @@ class Norm
 
 	/**
 	 * Returns the class name of the object - lowercase.  <em>(windows compatability)</em>
-	 * @param object $obj 
+	 * @param object $obj if object has a method name "getTableName" returns the return value of that as the table name
 	 * @access private
 	 * @returns string
 	 */
-	private function getClass($obj)
+	private function getTableName($obj)
 	{
-		return(strtolower(get_class($obj)));
+		if (method_exists($obj,'getTableName'))
+		{
+			return($obj->getTableName());
+		}
+		else
+			return(strtolower(get_class($obj)));
 	}
 
 
@@ -864,7 +871,7 @@ class Norm
 	 */
 	private function reduceTables($obj)
 	{
-		if (is_object($obj)) $table = self::getClass($table);
+		if (is_object($obj)) $table = self::getTableName($table);
 		else $table = $obj;
 		$this->getMaps();
 
@@ -976,8 +983,26 @@ class Norm
 			unset($dbSchema[$v]);
 		}
 
+
 		$objSchema	= array_keys($objSchema);
 		$dbSchema	= array_keys($dbSchema);
+
+		/*
+		print "<hr><pre>object schema:\n";
+		print_r($objSchema);
+		print "<b>Compared to DB:</b>";
+		print_r($dbSchema);
+
+		print "<b>Diff:</b>";
+		print_r(array_diff($objSchema,$dbSchema));
+		*/
+		/*
+		print "s1<pre>".print_r($objSchema,true)."</pre>";
+		print "s2<pre>".print_r($dbSchema,true)."</pre>";
+
+		print "diff<pre>".print_r(array_diff($objSchema,$dbSchema),true)."</pre>";
+		*/
+
 		return(array_diff($objSchema,$dbSchema));
 	}
 
@@ -1011,7 +1036,7 @@ class Norm
 		else if (is_string($v) && strlen($v) > 255)		$Q .= "`{$table}_{$col}` text default(''),";
 		else if (is_object($v)) 						
 		{
-			$tableName	= self::getClass($v);
+			$tableName	= self::getTableName($v);
 														$Q .= "`{$tableName}_{$col}` int unsigned not null,";
 		}
 		else $Q .= "`{$table}_{$col}` varchar(255) not null,"; // Kinda generic type / catch all.
