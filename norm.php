@@ -164,6 +164,7 @@ class Norm
 	 */
 	protected $resultsGetMode			= 0;
 
+	public $debug			= true;
 	/**
 	 * @var insertId Contains last insert id
 	 * @access public
@@ -596,8 +597,6 @@ class Norm
 		$this->insertId			= self::$link->lastInsertId();
 		$this->lastQuery		= $Q;
 
-		//print_pre(self::$link->errorInfo(),true);
-
 		return($this);
 	}
 
@@ -632,7 +631,7 @@ class Norm
 				// Allows me to store just direct object
 				if (is_object($objVars[$k]))
 				{
-					$this->store($obj->$k,$skipNull);
+	//				$this->store($obj->$k,$skipNull);
 					$tieThese[] = array($obj,$obj->$k);
 					unset($objVars[$k]);
 					unset($obj->$k);
@@ -659,6 +658,7 @@ class Norm
 		}
 		
 
+		// Should probably turn this entire jalopy into a prepared statement.
 		if (!empty($obj->id))
 			$Q="UPDATE `{$this->prefix}{$tableName}` SET";
 		else
@@ -668,12 +668,14 @@ class Norm
 		{
 			foreach($objVars as $k=>$v)
 			{
+				$v = addslashes($v);
 				if ($k == 'id') $WHERE[] = "`{$tableName}_{$k}`='{$v}'";
-				else $Q.=" `{$tableName}_{$k}`='{$v}',";
+				else $SET.=" `{$tableName}_{$k}`='{$v}',";
 			}
-			$Q = rtrim($Q,',');
+			$SET = rtrim($SET,',');
 		}
 
+		$Q .= "{$SET}";
 		if (!empty($WHERE)) $Q .= " WHERE ".join('AND',$WHERE);
 
 		$this->query($Q);
@@ -689,7 +691,7 @@ class Norm
 			if (is_object($objs[0]) && is_object($objs[1]))
 				$this->tie($objs[0],$objs[1],$skipNull);
 		}
-		if (!empty($objArrays)) $this->tie($obj,$objArrays,$skipNull);
+	//	if (!empty($objArrays)) $this->tie($obj,$objArrays,$skipNull);
 
 		return($this);
 	}
@@ -1095,9 +1097,24 @@ class Norm
 
 if (!function_exists('print_pre'))
 {
-	function print_pre($dat)
+	function print_pre($str,$str2 = null)
 	{
-		print "<pre>".print_r($dat,true)."</pre>";
+		$trace = debug_backtrace();
+		$caller = $trace[1];
+		print "<b>{$caller['class']}->{$caller['function']}</b><br />";
+
+		if (is_array($str) && is_array($str2))
+		{
+			print "<table><thead>";
+			print "<th>Var 1</th>";
+			print "<th>Var 2</th></thead>";
+			print "<tdata><tr>";
+			print "<td valign=\"top\"><pre>\n".print_r($str,true)."</pre></td>";
+			print "<td valign=\"top\"><pre>\n".print_r($str2,true)."</pre></td>";
+			print "</table>";
+		}
+		else
+			print "<pre>".print_r($str,true)."</pre>";
 	}
 }
 
