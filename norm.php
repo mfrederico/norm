@@ -3,7 +3,7 @@
 //============================================================+
 // Norm - Not an ORM                 
 //-------------------------------------
-// Version          : 1.1.4
+// Version          : 1.1.3
 // Author           : Matthew Frederico          
 // License          : Whichever GPL works best for you
 //-------------------------------------
@@ -43,7 +43,7 @@
  * @author Matthew Frederico
  * @link http://www.ultrize.com/norm/
  * @license http://www.gnu.org/copyleft/lesser.html LGPL
- * @version 1.1.4
+ * @version 1.1.3
  * @copyright Copyright 2010 Matthew Frederico - ultrize.com
  * @package Norm
  */
@@ -437,7 +437,7 @@ class Norm
                 else 
 				{
 					$eq = (!empty($this->likeVars["{$mainTable}{$k}"])) ? 'LIKE' : '=';
-					if ($eq == 'LIKE') $v .= '%';
+					if ($eq == 'LIKE') $v = "%{$v}%";
 					$WHERE .= "`{$mainTable}{$k}` {$eq} '{$v}' ";
 				}
             }
