@@ -3,7 +3,7 @@
 //============================================================+
 // Norm - Not an ORM                 
 //-------------------------------------
-// Version          : 1.1.3
+// Version          : 1.1.4
 // Author           : Matthew Frederico          
 // License          : Whichever GPL works best for you
 //-------------------------------------
@@ -43,7 +43,7 @@
  * @author Matthew Frederico
  * @link http://www.ultrize.com/norm/
  * @license http://www.gnu.org/copyleft/lesser.html LGPL
- * @version 1.1.3
+ * @version 1.1.4
  * @copyright Copyright 2010 Matthew Frederico - ultrize.com
  * @package Norm
  */
@@ -150,6 +150,12 @@ class Norm
 	 * @access protected
 	 */
 	protected $whereVars	= array();
+
+	/**
+	 * @var likeVars collection of column names to convert as "like" instead of "="
+	 * @access protected
+	 */
+	protected $likeVars		= array();
 
 	/**
 	 * @var prefix the database table prefix
@@ -368,6 +374,19 @@ class Norm
 	}
 
 	/**
+	 * Sets the fields to look for a "like" parameter ( a percent sign ) in data passed to the specified field.
+	 * @param string $column
+	 * @access public
+	 * @returns objet
+     * @see get() where() 
+	 */
+	public function like($column)
+	{
+		$this->likeVars[$column] = true;	
+		return($this);
+	}
+
+	/**
 	 * Sets the "where" parameters of any related objects if necessary
 	 * @param mixed $whereObjs objects to specify column attributes
 	 * @access public
@@ -408,13 +427,19 @@ class Norm
         {
             if (!empty($v))
             {
+
                 if (strlen($WHERE)) $WHERE .= " AND ";
                 if (is_object($v))
                 {
                     $WHERE .= self::parseWhere($v);
                 }
                 //if (is_array($v) ... 
-                else $WHERE .= "{$mainTable}{$k}='{$v}' ";
+                else 
+				{
+					$eq = (!empty($this->likeVars["{$mainTable}{$k}"])) ? 'LIKE' : '=';
+					if ($eq == 'LIKE') $v .= '%';
+					$WHERE .= "`{$mainTable}{$k}` {$eq} '{$v}' ";
+				}
             }
         }
         return($WHERE);
@@ -445,6 +470,7 @@ class Norm
 	}
 
 
+
 	/**
 	 * Returns an string containing any "WHERE or AND" clauses
 	 * @param object $fromObj This is the child object
@@ -469,11 +495,11 @@ class Norm
 			{
 				if (!empty($vl))
 				{
-					if (!is_array($vl)) $AND .= "AND {$k}_{$kn}='{$vl}' ";
+					if (!is_array($vl)) $AND .= "AND `{$k}_{$kn}`='{$vl}' ";
 					else 
 					{
 						// This allows for arrays of id's for example..  $t->id = array(1,2,3,4,...)
-						$AND .= "AND {$k}_{$kn} IN('".join("','",$vl)."') ";
+						$AND .= "AND `{$k}_{$kn}` IN('".join("','",$vl)."') ";
 					}
 				}
 			}
@@ -498,6 +524,7 @@ class Norm
 
 		// Release the query parameters
 		$this->orderVars	= '';
+		$this->likeVars		= '';
 		$this->orderDir		= '';
 		$this->whereVars	= '';
 		return($Q);
@@ -1093,6 +1120,51 @@ class Norm
 		}
 		return($Q);
 	}
+
+    /** 
+     * reindex an array to one of the key values
+	 * @param array $array array of assoc arrays
+	 * @param string $newIdx a "visible" assoc key to use as new array index
+     * @returns array
+    **/
+    public function setIndex($array,$newIdx)
+    {
+        $countIdx = array();
+        $newArray = array();
+
+        if (is_array($array))
+        {
+            foreach($array as $idx=>$value)
+            {
+                if (is_array($value))
+                {   
+                    if ($countIdx[$value[$newIdx]]++ == 1)
+                    { 
+                        $oldVal = $newArray[$value[$newIdx]];
+                        unset($newArray[$value[$newIdx]]);
+
+                        $newArray[$value[$newIdx]][] = $oldVal;
+                        $newArray[$value[$newIdx]][] = $value;
+                    } 
+                    else if ($countIdx[$value[$newIdx]] > 1)
+                    {
+                        $newArray[$value[$newIdx]][] = $value;
+                    } 
+                    else
+                    {
+                        $newArray[$value[$newIdx]] = $value;
+                    }
+                }
+                else
+                {
+                    $newArray[$array[$newIdx]][$idx] = $value;
+                }
+            }
+            return($newArray);
+        }
+        else return($array);
+    }
+
 }
 
 if (!function_exists('print_pre'))
