@@ -29,6 +29,8 @@ class Comment
 	var $post_id;
 }
 
+$u = new User(); // Root element
+
 // initialize with some default data
 if (isset($_REQUEST['init']))
 {
@@ -50,47 +52,49 @@ if (isset($_REQUEST['init']))
 
 	header("Location: ".$_SERVER['SCRIPT_NAME']);
 }
-if (isset($_REQUEST['cmt']))
-{
-	$c = new Comment();
-	$c->post_id = $_REQUEST['post_id'];
-	$c->id		= null;
-	$c->comment = $_REQUEST['comment'];
-	$w->store($c);
-}
 
-if (isset($_REQUEST['post']) && $_SESSION['user']['id'])
-{
-	$u = new User();
-	$u->id = $_SESSION['user']['id'];
-	$u->post = new Post();
 
-	$w->stuff($_REQUEST['post'],$u->post);
-	$w->store($u);
-}
-
-// Ok, now for the actual blog
-$u = new User(); // Root element
-
-// Do we have a login request?
+// Authenticate this user!
 if (isset($_REQUEST['user']))
 {
 	// Should validate form, check for login && password
-	$user = $w->stuff($_REQUEST['user'],$u)->get($u,'user_login,user_password,user_id',Norm::SINGLE)->results;
-	if (!empty($user)) 
-	{
-		$user = array_shift($user['user']);
-		$_SESSION['user'] = $user;
-	}
+	$user = $w->stuff($_REQUEST['user'],$u)->get($u,'user_login,user_password,user_id',Norm::SINGLE)->results['user'][0];
+	if (!empty($user)) $_SESSION['user'] = $user;
 	else die('<h1>Invalid login</h1>');
 }
 
-if (isset($_REQUEST['del']))
+// Make sure we're authenticated to perform these actions
+if (isset($_SESSION['user']['id']) && isset($_REQUEST['a']))
 {
-	$p = new Post();
-	$p->id = intval($_REQUEST['del']);
-	$w->del($p);
+	switch(strtolower($_REQUEST['a']))
+	{
+		case 'c':
+			$c = new Comment();
+			$c->post_id = $_REQUEST['post_id'];
+			$c->id		= null;
+			$c->comment = $_REQUEST['comment'];
+			$w->store($c);
+			break;
+		case 'p':
+			$u = new User();
+			$u->id = $_SESSION['user']['id'];
+			$u->post = new Post();
+
+			// using "stuff" here allows us to expand our post table dynamically
+			$w->stuff($_REQUEST['post'],$u->post);
+			$w->store($u);
+			break;
+		case 'd':
+			$p = new Post();
+			$p->id = intval($_REQUEST['id']);
+			$w->del($p);
+			break;
+		default:
+			die('<h2>Please authenticate.</h2>');
+	}
 }
+
+// Ok, now for the actual markup content
 
 $style = <<<__STYLE__
 <style>
@@ -117,7 +121,7 @@ $postForm = <<<__EOT__
 <h1>Post Something Interesting!</h1>
 <fieldset>
 <form action="{$_SERVER['SCRIPT_NAME']}" method="post">
-<input type="hidden" name="post">
+<input type="hidden" name="a" value="p">
 Title: <input type="text" name="post[title]" size="50" style="width:90%">	<br />
 Body:<br />
 <textarea name="post[body]" rows="5" style="width:100%"></textarea><br />
@@ -130,7 +134,7 @@ function commentForm($post_id)
 {
 	$commentForm = <<<__EOT__
 <form action="{$_SERVER['SCRIPT_NAME']}" method="post">
-<input type="hidden" name="cmt">
+<input type="hidden" name="a" value="c">
 <input type="hidden" name="post_id" value="{$post_id}">
 Comment: <input name="comment" size="50"><input type="submit" value="&raquo;">
 </form>
@@ -138,14 +142,13 @@ __EOT__;
 	return($commentForm);
 }
 
-
 // check to make sure we're logged in:
-if (!isset($_SESSION['user']))	print $loginForm;
-else 							print $postForm;
+print (!isset($_SESSION['user'])) ?	$loginForm  : $postForm;
 
 // Lets grab the full hierarchy of all users
 // Because we will be recieving posts, we can order by them as well.
 $users = array_shift($w->orderby('post_updated','DESC')->get($u,'*',Norm::FULL)->results);
+
 if (!empty($users))
 {
 	print "<h1>Things posted to Norm</h1>";
@@ -158,7 +161,7 @@ if (!empty($users))
 			$c->post_id = $postData['id'];
 			$comments = @$w->get($c,'comment_comment,comment_id',Norm::FULL)->results;
 
-			if ($data['id'] == @$_SESSION['user']['id']) $delButton = " | <a class=\"ctrls\" href=\"{$_SERVER['PHP_SELF']}?del={$postData['id']}\">X</a>";
+			if ($data['id'] == @$_SESSION['user']['id']) $delButton = " | <a class=\"ctrls\" href=\"{$_SERVER['PHP_SELF']}?a=d&id={$postData['id']}\">X</a>";
 			print <<<__EOT__
 <fieldset>
 	<legend>{$postData['title']} {$delButton}</legend>
@@ -180,11 +183,6 @@ else
 <h1>Nothing posted yet - </h1>
 <p><a href="{$_SERVER['SCRIPT_NAME']}?init=true">Click here to initialize tables</a></p>
 __EOT__;
-}
-
-function print_pre($dat)
-{
-	print "<pre>".print_r($dat,true)."</pre>";
 }
 
 ?>
