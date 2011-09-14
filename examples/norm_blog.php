@@ -11,7 +11,6 @@ include('../../norm_db_config.php');
 $w = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
 $w->setTablePrefix('NORM_');
 
-
 class User
 {
 	var $login;
@@ -77,7 +76,7 @@ $u = new User(); // Root element
 if (isset($_REQUEST['user']))
 {
 	// Should validate form, check for login && password
-	$user = $w->stuff($_REQUEST['user'],$u)->get($u,'user_login,user_password,user_id',Norm::SINGLE);
+	$user = $w->stuff($_REQUEST['user'],$u)->get($u,'user_login,user_password,user_id',Norm::SINGLE)->results;
 	if (!empty($user)) 
 	{
 		$user = array_shift($user['user']);
@@ -146,19 +145,18 @@ else 							print $postForm;
 
 // Lets grab the full hierarchy of all users
 // Because we will be recieving posts, we can order by them as well.
-$users = $w->orderby('post_updated','DESC')->get($u,'*',Norm::FULL);
-
+$users = array_shift($w->orderby('post_updated','DESC')->get($u,'*',Norm::FULL)->results);
 if (!empty($users))
 {
 	print "<h1>Things posted to Norm</h1>";
-	foreach($users['user'] as $user_id=>$data)
+	foreach($users as $idx=>$data)
 	{
 		foreach($data['post'] as $pidx=>$postData)
 		{
 			// Get all the comments for this post
 			$c = new Comment();
 			$c->post_id = $postData['id'];
-			$comments = @$w->get($c,'comment_comment,comment_id',Norm::FULL);
+			$comments = @$w->get($c,'comment_comment,comment_id',Norm::FULL)->results;
 
 			if ($data['id'] == @$_SESSION['user']['id']) $delButton = " | <a class=\"ctrls\" href=\"{$_SERVER['PHP_SELF']}?del={$postData['id']}\">X</a>";
 			print <<<__EOT__

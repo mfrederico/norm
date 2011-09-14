@@ -3,7 +3,7 @@
 //============================================================+
 // Norm - Not an ORM                 
 //-------------------------------------
-// Version          : 1.1.3
+// Version          : 1.2.3
 // Author           : Matthew Frederico          
 // License          : Whichever GPL works best for you
 //-------------------------------------
@@ -43,7 +43,7 @@
  * @author Matthew Frederico
  * @link http://www.ultrize.com/norm/
  * @license http://www.gnu.org/copyleft/lesser.html LGPL
- * @version 1.1.3
+ * @version 1.2.1
  * @copyright Copyright 2010 Matthew Frederico - ultrize.com
  * @package Norm
  */
@@ -104,10 +104,16 @@ class Norm
 	protected $pass = '';
 
 	/**
-	 * @var dsna This is the DSN string e.g. mysql:host=localhost;dbname=database
+	 * @var dsna This is the DSN array broken into key value pairs
 	 * @access protected
 	 */
 	protected $dsna = '';
+
+	/**
+	 * @var dsn This is the DSN string e.g. mysql:host=localhost;dbname=database
+	 * @access protected
+	 */
+	protected $dsn = '';
 
 	/**
 	 * @var tableList This is the internal table list pointer for NORM
@@ -184,6 +190,24 @@ class Norm
 	public $lastQuery			= '';
 
 	/**
+	 * @var constrainList array of tables to constrain to
+	 * @access private
+	 */
+	public $constrainList	= array();
+
+    /**
+     * @var limitStart int 
+     * @access private
+     */
+     private $limitStart = 0;
+
+    /**
+     * @var limitEnd int 
+     * @access private
+     */
+    private $limitEnd   = 0;
+
+	/**
 	 * @var results Contains flat array from the database.
 	 * @access public
 	 */
@@ -195,6 +219,11 @@ class Norm
 	 */
 	private static $link = null;
 	
+	/**
+	 * @var xmlptr
+	 * @access protected
+	 */
+	private static $xmlptr = 0;
 
 	/**
  	 * @param string $dsn the database dsn connection
@@ -206,20 +235,41 @@ class Norm
 	 */
 	public function __construct($dsn,$user = null,$pass = null,$attr = null) 
 	{
+		//Use our custom handler
+		set_error_handler(array($this,'trigger_my_error'));
+
+		$this->dsn	= $dsn;
 		$this->dsna = self::parseDsn($dsn);
 
 		$this->user = $user;
 		$this->pass = $pass;
 
-        if ( self :: $link ) {
+        if ( self :: $link ) 
+		{
             return self;
         }
-
-        self :: $link = new PDO ( $dsn, $user, $pass, $attr ) ;
+		else $this->revive();
 
         return $this;
     }
 
+    /**
+     * Attempts to reconnect to the DB if necessary.
+     * @returns object 
+     * @access public 
+     */
+    public function revive()
+    {
+        try
+        {
+            self :: $link = new PDO ( $this->dsn, $this->user, $this->pass, $attr ) ;
+        }
+        catch (exception $e)
+        {
+            die($e->getMessage());
+        }
+        return $this;
+    }
 	/**
 	 * Allows you to set the table prefix
 	 * @param string $prefix prefix for the table
@@ -290,7 +340,7 @@ class Norm
 			}
 			else 
 			{
-				trigger_error('Trying to tie objects that have no id '.self::getTableName($obj1).' -> '.self::getTableName($obj2).' - cannot save to database!',E_USER_NOTICE);
+				if ($this->dbg) trigger_error('Trying to tie objects that have no id '.self::getTableName($obj1).' -> '.self::getTableName($obj2).' - cannot save to database!',E_USER_NOTICE);
 			}
 		}
 	}
@@ -338,11 +388,11 @@ class Norm
 		$tableName	= self::getTableName($obj);
 		$objVars	= get_object_vars($obj);
 
-		$ts		= $this->getTableSchema($tableName);
+		$this->getTableSchema($tableName);
 
-		// Delete all my relationships
 		$this->getRelatedTables($tableName);
 
+		// Delete all my relationships
 		if (!empty($this->relatedTables[$tableName]))
 		{
 			foreach(array_keys($this->relatedTables[$tableName]) as $joinTable)
@@ -355,6 +405,20 @@ class Norm
 		$this->query($Q);
 		return($this);
 	}
+    /**
+     * Sets the "limit" parameters of the final result set
+     * @param int $start starting block
+     * @param int $end quantity to return
+     * @access public
+     * @returns object
+     * @see get() del() where()
+     */
+    public function limit($start = 0,$end=1)
+    {
+        $this->limitStart = intval($start);
+        $this->limitEnd   = intval($end);
+        return($this);
+    }
 
 	/**
 	 * Sets the "order by" parameters of any related objects if necessary
@@ -403,7 +467,6 @@ class Norm
 			}
 		}
 		else if (is_object($whereObjs)) $this->whereVars[self::getTableName($whereObjs)] = get_object_vars($whereObjs);
-
 		return($this);
 	}
 
@@ -415,30 +478,33 @@ class Norm
      * @returns string
      * @see get() del()
      */
-    private function parseWhere($fromObj)
+    private function parseWhere($fromObj,$prefixTable = '')
     {
+		if (!is_object($fromObj)) return(false);
 		$WHERE		= '';
         $mainTable  = self::getTableName($fromObj);
 		if ($mainTable) $mainTable .= '_';
+		if (!empty($prefixTable)) $mainTable = $prefixTable.'_'.$mainTable;
 
         $objVars    = get_object_vars($fromObj);
         // This develops our WHERE clause from our own passed object
         if (!empty($objVars)) foreach($objVars as $k=>$v)
         {
-            if (!empty($v))
+            if (isset($v))
             {
-
-                if (strlen($WHERE)) $WHERE .= " AND ";
                 if (is_object($v))
                 {
                     $WHERE .= self::parseWhere($v);
                 }
-                //if (is_array($v) ... 
                 else 
 				{
 					$eq = (!empty($this->likeVars["{$mainTable}{$k}"])) ? 'LIKE' : '=';
 					if ($eq == 'LIKE') $v = "%{$v}%";
-					$WHERE .= "`{$mainTable}{$k}` {$eq} '{$v}' ";
+					if ($v != null)
+					{
+						if (strlen($WHERE)) $WHERE .= " AND ";
+						$WHERE .= "`{$mainTable}{$k}` {$eq} '{$v}' ";
+					}
 				}
             }
         }
@@ -446,24 +512,21 @@ class Norm
     }
 
 	/**
-	 * Reverse map 
+	 * Reverse map to parent table
 	 * @param string $tableName name of child table to map from
 	 * @return array
 	 * see getParentOf()
 	**/
-	private function revMap($tableName)
+	public function getParentTable($tableName)
 	{
+		if (is_object($tableName)) $tableName = self::getTableName($tableName);
 		$this->getMaps();
+
 		foreach($this->maps as $k=>$a)
 		{
 			if (in_array($tableName,$a)) 
 			{
-				/*
-				if ($this->maps[$k]) $parent[$tableName] = $this->revMap($k);
-				else
-					$parent[$tableName] = $k;
-				*/
-				if ($this->maps[$k]) $parent = $this->getMaps($k);
+				$parent[$tableName][] = $k;
 			}
 		}
 		return($parent);
@@ -475,25 +538,25 @@ class Norm
 	 * Returns an string containing any "WHERE or AND" clauses
 	 * @param object $fromObj This is the child object
 	 * @param string $cols CSV of column names - in the format "classname_column1,classname_column2 .. "
+	 * @param string $tpf table prefix (usually for reverse joins)
 	 * @access public
 	 * @returns array
      * @see where() del() reduceTables() index()
 	 */
-	private function appendOpts($obj)
+	private function appendOpts($obj,$tpf = '',$Q = '')
 	{
 		$ORDER	= '';
 		$WHERE	= '';
 		$AND	= '';
-		$Q		= '';
 
-		$WHERE = $this->parseWhere($obj);
+		$WHERE = $this->parseWhere($obj,$tpf);
 
 		// This builds any extra AND clauses
 		if (!empty($this->whereVars)) foreach($this->whereVars as $k=>$v) 
 		{
 			foreach($v as $kn=>$vl) 
 			{
-				if (!empty($vl))
+				if (!is_null($vl))
 				{
 					if (!is_array($vl)) $AND .= "AND `{$k}_{$kn}`='{$vl}' ";
 					else 
@@ -508,7 +571,7 @@ class Norm
 		// This builds any ORDER clauses
 		if (!empty($this->orderVars)) foreach($this->orderVars as $v) 
 		{
-			if (!empty($v)) $ORDER .= "{$v},";
+			if (strlen($v)) $ORDER .= "`{$v}`,";
 		}
 		if (strlen($ORDER)) 
 		{
@@ -517,10 +580,17 @@ class Norm
 		}
 
 		// Put it all together
-		$Q .= " WHERE {$WHERE}";
+		if (!strlen($Q)) $Q .= " WHERE {$WHERE}";
+		else $Q .=  " AND {$WHERE} ";
 		if (empty($WHERE)) $Q .= '1';
 		$Q .= " {$AND}";
 		$Q .= " {$ORDER}";
+        if ($this->limitStart || $this->limitEnd)
+        {
+            if ($this->limitEnd == 0) $this->limitEnd = 1;
+            $Q .= " LIMIT {$this->limitStart},{$this->limitEnd}";
+        }
+
 
 		// Release the query parameters
 		$this->orderVars	= '';
@@ -550,7 +620,84 @@ class Norm
 
 		$Q .= $this->appendOpts($childObj);
 
-		return($this->query($Q)->results);	
+		$this->query($Q,PDO::FETCH_ASSOC);
+		$this->constrainList[] = $parent;
+		if (!empty($this->constrainList)) $this->constrainResults();
+		return($this);
+	}
+
+	/**
+	 * Returns an object with all values unset/reset
+	 * @param object $fromObj This is the main object to return
+	 * @param string $keep CSV of column names - in the format "column1,column2 ..  "
+	 * @param bool $getSet Whether or not to return the ENTIRE hierarchical structure
+	 * @access public
+	 * @returns object
+	 */
+	public function resetObj($obj,$keep = '')
+	{
+		if (!empty($keep)) $keep = explode(',',$keep);
+		if (is_object($obj))		$objVars		= get_object_vars($obj);
+		else return($obj);
+
+		foreach($objVars as $k=>$v)
+		{
+			if (!in_array($k,$keep)) unset($obj->$k);
+		}
+		return($obj);
+	}
+
+	/**
+	 * Returns an list of objects that are connected to the fromObj
+	 * @param object $fromObj This is the main object we're looking at
+	 * @param object $obj this is the instance of what we are looking for
+	 * @param string $cols CSV of column names - in the format "classname_column1,classname_column2 .. "
+	 * @param bool $getSet Whether or not to return the ENTIRE hierarchical structure
+	 * @access public
+	 * @returns array
+     * @see where() del() reduceTables() index()
+	 */
+	public function getObjsFrom($obj,$fromObj,$cols = '*',$getSet = 1)
+	{
+		if (empty($fromObj) || empty($obj)) 
+		{
+			trigger_error('Unknown object - make sure objects have instance',E_USER_WARNING);
+		}
+		$getCols = explode(',',strtolower($cols));
+
+		$fromTable		= self::getTableName($fromObj);
+		$objTable		= self::getTableName($obj);
+
+		$joinTable = "{$this->prefix}{$fromTable}_{$objTable}";
+
+		if (is_object($obj))		$objVars		= get_object_vars($obj);
+		if (is_object($fromObj))	$fromObjVars	= get_object_vars($fromObj);
+
+		$Q="SELECT ".join(',',$getCols)." FROM `{$joinTable}` INNER JOIN `{$this->prefix}{$objTable}` ON (`{$this->prefix}{$objTable}_id`=`{$joinTable}_{$objTable}_id`)";
+	
+		$this->where($obj);
+		$Q .= $this->appendOpts($fromObj,$joinTable);
+
+		$this->query($Q,PDO::FETCH_ASSOC);
+
+		// sets the results expectations
+		return($this->getResults());
+	}
+
+	function getResults()
+	{
+		if (!empty($this->results))
+		{
+			if (!empty($this->constrainList)) $this->constrainResults();
+
+			if ($this->resultsGetMode == 0) $this->results = $this->index($this->results);	
+			return($this);
+		}
+		else 
+		{
+			$this->results = false;
+			return($this);
+		}
 	}
 
 	/**
@@ -565,8 +712,7 @@ class Norm
 	 */
 	public function get($fromObj,$cols = '*',$getSet = 1)
 	{
-		$cols=strtolower($cols);
-		$getCols = explode(',',$cols);
+		$getCols = explode(',',strtolower($cols));
 		
 		$tableName	= self::getTableName($fromObj);
 		$objVars	= get_object_vars($fromObj);
@@ -584,27 +730,59 @@ class Norm
 				{
 					foreach($qrys as $qry) 
 					{
-						$Q .= " JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
+						if (empty($this->constrainList) || in_array($qry['mapTo'],$this->constrainList))
+						{
+							$Q .= " JOIN {$this->prefix}{$qry['table']}_{$qry['mapTo']} ON ({$qry['table']}_{$qry['mapTo']}_{$qry['table']}_id={$qry['table']}_id) ";
+							$Q .= " JOIN {$this->prefix}{$qry['mapTo']} ON ({$qry['mapTo']}_id={$qry['table']}_{$qry['mapTo']}_{$qry['mapTo']}_id) ";
+						}
 					}
 				}
 			}
 		}
 	
-		$Q .= $this->appendOpts($fromObj);;
+		$Q .= $this->appendOpts($fromObj);
 
 		$this->query($Q,PDO::FETCH_ASSOC);
 
-		// Sets the results expectations
-		if (!empty($this->results))
-		{
-			if		($this->resultsGetMode == 0) return(self::index($this->results));	
-			else if ($this->resultsGetMode == 1) return($this->results);
-			else if ($this->resultsGetMode == 2) return($this);
-		}
-		else return(false);
+		return($this->getResults());
 	}
 
-	
+	/**
+	 * returns only the constrained variables
+	 * @access private
+	 * @returns object
+     * @see get()
+	 */
+	private function constrainResults()
+	{
+		if (!empty($this->results))
+		{
+			foreach($this->results as $idx=>$kvp)
+			{
+				foreach($kvp as $k=>$v)
+				{
+					list($tbl,$val) = explode('_',$k);
+					if (!in_array($tbl,$this->constrainList)) unset($this->results[$idx][$k]);
+				}			
+			}
+		}
+		return($this);
+	}
+
+	/**
+	 * Sets the list of objects to constrain to in the database (get/set)
+	 * @param string $objList csv list of objects to constrain to
+	 * @access public
+	 * @returns object
+     * @see where() del() reduceTables() index()
+	 */
+	public function constrainTo($objList)
+	{
+		$cl = explode(',',$objList);	
+		foreach($cl as $c) $this->constrainList[] = "{$this->prefix}{$c}";
+		return($this);	
+	}
+
 	/**
 	 * Raw queries for things norm may not be able to do (like that would ever happen :-)
 	 * this will also allow me to log queries / responses for future caching.
@@ -623,6 +801,10 @@ class Norm
 		$this->results			= $data->fetchAll();
 		$this->insertId			= self::$link->lastInsertId();
 		$this->lastQuery		= $Q;
+
+		$this->orderVars		= array();
+		$this->whereVars		= array();
+		$this->likeVars			= array();
 
 		return($this);
 	}
@@ -712,6 +894,7 @@ class Norm
 			$lid = $this->insertId;
 			if ($lid) $obj->id = $lid;
 		}
+		else $this->insertId = $obj->id;
 
 		if (!empty($tieThese)) foreach ($tieThese as $objs) 
 		{
@@ -723,6 +906,36 @@ class Norm
 		return($this);
 	}
 
+	public function sxmlto_array($obj)
+	{
+          $arr = (array)$obj;
+          if(empty($arr)){
+              $arr = "";
+          } else {
+              foreach($arr as $key=>$value){
+                  if(!is_scalar($value)){
+                      $arr[$key] = sx_array($value);
+                  }
+              }
+          }
+          return $arr;
+      }
+
+	/** 
+	* Converts simplexml to usable norm object
+	* 
+	*/
+	public function simplexmlconvert($obj)
+	{
+		//$std = json_decode(str_replace('@attributes','__attributes',json_encode($obj)));
+		$std = sxmlto_array($obj);
+
+		print_r($std);
+
+		return($final);
+	}
+
+
 	/**
 	 * Returns the class name of the object - lowercase.  <em>(windows compatability)</em>
 	 * @param object $obj if object has a method name "getTableName" returns the return value of that as the table name
@@ -731,12 +944,20 @@ class Norm
 	 */
 	private function getTableName($obj)
 	{
-		if (method_exists($obj,'getTableName'))
+		if (is_object($obj))
 		{
-			return($obj->getTableName());
+			if (method_exists($obj,'getTableName'))
+			{
+				return($obj->getTableName());
+			}
+			else
+			{
+				return(strtolower(get_class($obj)));
+			}
 		}
-		else
-			return(strtolower(get_class($obj)));
+		elseif (is_string($obj)) 
+			return(strtolower($obj));
+		else return(false);
 	}
 
 
@@ -813,7 +1034,6 @@ class Norm
 		$tblVars = $this->parseKVP($dataset);
 		$rootTable = array_pop(array_keys($tblVars));
 		
-
 		// Condense -> assign each array to it's correct structure
 		foreach($tblVars as $tbl=>$cols)
 		{
@@ -842,9 +1062,8 @@ class Norm
 		// Trim out what we've grafted
 		foreach(array_keys($tblVars) as $unsetMe) if ($unsetMe != $rootTable) unset($tblVars[$unsetMe]); 
 
-		// reindex my root table
+		// reindex my root table to start indexing at 0
 		$tblVars[$rootTable] = array_values($tblVars[$rootTable]);
-
 
 		return($tblVars);
 	}
@@ -870,10 +1089,21 @@ class Norm
 
 	/**
 	 * Maps the database tables into a hierarchy
-	 * @access private
+	 * @access public
 	 * @returns array or false
 	 */
-	private function getMaps()
+	public function setMap($mapThis,$hasThis)
+	{
+		$this->maps[$mapThis][] = $hasThis;
+		return($this);
+	}
+
+	/**
+	 * Maps the database tables into a hierarchy
+	 * @access public
+	 * @returns array or false
+	 */
+	public function getMaps()
 	{
 		if (!empty($this->maps)) return($this->maps);
 
@@ -884,7 +1114,7 @@ class Norm
 				@list($main,$has) = explode('_',$tbl);
 				if (!empty($has))
 				{
-					$this->maps[$main][] = $has;
+					$this->setMap($main,$has);
 				}
 			}
 			return($this->maps);
@@ -900,10 +1130,8 @@ class Norm
 	 */
 	private function reduceTables($obj)
 	{
-		if (is_object($obj)) $table = self::getTableName($table);
-		else $table = $obj;
+		$table = $this->getTableName($obj);
 		$this->getMaps();
-
 		if (!empty($this->maps[$table]))
 		{
 			foreach($this->maps[$table] as $idx=>$mapToTable)
@@ -926,12 +1154,12 @@ class Norm
 	private function getRelatedTables($table)
 	{
 		$i			= 0;
-		$tableList	= $this->getTableList();
+		$this->getTableList();
 
-		if (!empty($tableList))
+		if (!empty($this->tableList))
 		{
 			// get initial lookp tables
-			foreach($tableList as $idx=>$tbl)
+			foreach($this->tableList as $idx=>$tbl)
 			{
 				$tbl = str_replace($this->prefix,'',$tbl);
 				@list($thisObj,$hasA) = explode('_',$tbl);
@@ -953,7 +1181,7 @@ class Norm
 	{
 		if (empty($this->tableList))
 		{
-			$Q="SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
+			$Q="SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='{$this->dsna['dbname']}' AND TABLE_NAME LIKE '{$this->prefix}%'"; 
 			$ts = $this->query($Q)->results;
 
 			foreach($ts as $idx=>$val)
@@ -1164,6 +1392,18 @@ class Norm
         }
         else return($array);
     }
+
+	// Beginning of error handling
+	public function trigger_my_error($level, $message) 
+	{
+		if ($level == E_USER_WARNING || $level ==E_USER_ERROR) 
+		{
+			$callee = debug_backtrace();
+			$dat = $callee[2];
+			die("<Br />".$message.' in <strong>'.$dat['file'].'</strong> on line <strong>'.$dat['line'].'</strong>');
+		}
+		return(true);
+	}
 
 }
 

@@ -38,7 +38,7 @@ $costume->id = 2; // <- should be bunny outfit .. right?
 $renter->costume = $costume;
 
 // And this is where the magic happens:
-$norm->store($renter);
+//$norm->store($renter);
 
 // Now lets retrieve our renter object -
 // Lets make it TRICKY:
@@ -49,14 +49,16 @@ unset($costume);
 $renter			= new Renter();
 $renter->name	= "Joe Bloggs";
 print "<h3>Full Structure</h3>";
-print "<pre>".print_r($norm->get($renter,'*',Norm::FULL),true)."</pre>";
+print "<pre>".print_pre($norm->get($renter)->results,true)."</pre>";
+print_r($norm->lastQuery);
 
 // Pretty neato eh?
 
 // NOTE: What if I just want to see Just Joes' record only - maybe just his id and name?
 $renter			= new Renter();
 $renter->name	= "Joe Bloggs";
-print "<pre>".print_r($norm->get($renter,'renter_id,renter_name',Norm::SINGLE),true)."</pre>";
+print "<h3>Just Joe</h3>";
+print "<pre>".print_pre($norm->get($renter,'renter_id,renter_name',Norm::SINGLE)->results,true)."</pre>";
 
 //------------------------------------
 // NEXT UP: example5.php 

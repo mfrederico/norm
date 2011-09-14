@@ -30,8 +30,7 @@ $renter = new Renter;
 
 // Check this out:
 $renter->id =1;
-print "<pre>".print_r($norm->get($renter,'renter_id,renter_name,renter_phone',Norm::SINGLE),true)."</pre>";
-
+print "<pre>".print_pre($norm->get($renter,'renter_id,renter_name,renter_phone')->results)."</pre>";
 //------------------------------------
 // example6 - nuke EVERYTHING and start over!
 // NORM is like Magic.. 

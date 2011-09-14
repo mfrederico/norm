@@ -18,8 +18,8 @@
 	<div class="content">
 	<h1>Norm</h1>
 	<blockquote><b>N</b>ot an <b>ORM</b></blockquote>
-	<p>Norm is similar to an ORM in the same that you can store and retrieve objects to and from a database without having to write any SQL code.   It dynamically maps the database tables, data columns and data types to maintain a structured hiearchy of object relationship.</p>
-	<p>I originally created norm because there were so many great ORMS out there for PHP but to be honest, they were overly complicated for my feeble mind to wrap around.  I just wanted something I could throw a &quot;regular&quot; object at, tie in a couple other objects that relate to it, store it in a database and return it as a regular ASSOC array I could consume as JSON for jQuery or as an array for a  template engine .. </p>
+	<p>Norm more closely resembles an object mapper in that you can store and retrieve objects to and from a database without having to write any SQL code.   It dynamically maps the database tables, data columns and data types to maintain a structured hiearchy of object relationship.</p>
+	<p>I originally created norm because there were so many great ORMS/Object Mappers out there for PHP but to be honest, they were overly complicated for my feeble mind to wrap around.  I just wanted something I could throw a &quot;regular&quot; object at, tie in a couple other objects that relate to it, store it in a database and return it as a regular ASSOC array I could consume as JSON for jQuery or as an array for a  template engine .. </p>
 	<p>So that's what I endeavored to do.</p>
 	<p style="text-align:right;padding-right:33px"><a class="ui-state-highlight" href="doc/Norm/Norm.html">Norm::PHPDoc</a></p>
 	<p style="text-align:right;padding-right:33px"><a class="ui-state-highlight" href="http://www.github.com/mfrederico/norm/">Download Norm</a></p>
@@ -70,7 +70,7 @@
 
 	<script>
 		$(document).ready(function(){
-			$('#accordion').accordion({ autoHeight: true,collapsible: true,active:false});
+			$('#accordion').accordion({ autoHeight: false,collapsible: true,active:false});
 		});
 	</script>
 </body>

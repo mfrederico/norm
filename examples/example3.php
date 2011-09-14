@@ -36,7 +36,7 @@ $norm->store($costume);
 unset($costume->id);
 
 print "<h3>My costumes:</h3>";
-print "<pre>".print_r($norm->get($costume),true)."</pre>";
+print "<pre>".print_pre($norm->get($costume)->results,true)."</pre>";
 
 // Woah - wait a second .. this only returned ONE costume .. but WHY?
 // Because there is data in the costume instance,  norm is using that to find your record!
@@ -44,7 +44,7 @@ print "<pre>".print_r($norm->get($costume),true)."</pre>";
 // So  .. lets start again ..
 $costume = new Costume();
 print "<h3>My costumes:</h3>";
-print "<pre>".print_r($norm->get($costume),true)."</pre>";
+print "<pre>".print_pre($norm->get($costume)->results,true)."</pre>";
 
 // That's better!
 

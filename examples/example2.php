@@ -29,7 +29,7 @@ $costume->id = 1;
 $costume_list = $norm->get($costume);
 
 print "<h3>My costume:</h3>";
-print "<pre>".print_r($costume_list,true)."</pre>";
+print "<pre>".print_pre($costume_list->results,$norm->lastQuery)."</pre>";
 
 // If you added more than one costume lets try it this way:
 // if we don't want to limit the results NORM will grab EVERYTHING.  So we unset the ID
@@ -37,7 +37,7 @@ unset($costume->id);
 $costume_list = $norm->get($costume);
 
 print "<h3>My LIST of costumes:</h3>";
-print "<pre>".print_r($costume_list,true)."</pre>";
+print "<pre>".print_pre($costume_list->results,$norm->lastQuery)."</pre>";
 
 //------------------------------------
 // NEXT UP: example3.php 

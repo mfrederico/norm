@@ -73,14 +73,14 @@ $artist = new artist();
 $artist->id = 1;
 
 // Get the artist with accompanying album and tracks heirarchy
-$fullSet = $w->get($artist,'*',NORM_FULL);
+$fullSet = $w->get($artist,'*',NORM_FULL)->results;
 print "<pre>\n* Complete dataset";
-print_r($fullSet);
+print_pre($fullSet);
 
 // Or if I just want the artist only
-$fullSet = $w->get($artist);
+$fullSet = $w->get($artist)->results;
 print "<br />\n* Artist Only *";
-print_r($fullSet);
+print_pre($fullSet);
 
 // And that's norm!
 
