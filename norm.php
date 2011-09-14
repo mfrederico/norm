@@ -467,6 +467,7 @@ class Norm
 			}
 		}
 		else if (is_object($whereObjs)) $this->whereVars[self::getTableName($whereObjs)] = get_object_vars($whereObjs);
+		$this->whereVars	= '';
 		return($this);
 	}
 
@@ -499,6 +500,7 @@ class Norm
                 else 
 				{
 					$eq = (!empty($this->likeVars["{$mainTable}{$k}"])) ? 'LIKE' : '=';
+					$this->likeVars		= '';
 					if ($eq == 'LIKE') $v = "%{$v}%";
 					if ($v != null)
 					{
@@ -577,6 +579,8 @@ class Norm
 		{
 			$ORDER = rtrim($ORDER,',');
 			$ORDER = "ORDER BY {$ORDER} {$this->orderDir}";
+			$this->orderVars	= '';
+			$this->orderDir		= '';
 		}
 
 		// Put it all together
@@ -593,10 +597,6 @@ class Norm
 
 
 		// Release the query parameters
-		$this->orderVars	= '';
-		$this->likeVars		= '';
-		$this->orderDir		= '';
-		$this->whereVars	= '';
 		return($Q);
 	}
 
@@ -1182,7 +1182,10 @@ class Norm
 		if (empty($this->tableList))
 		{
 			$Q="SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='{$this->dsna['dbname']}' AND TABLE_NAME LIKE '{$this->prefix}%'"; 
-			$ts = $this->query($Q)->results;
+			$data = self::$link->prepare($Q);
+			$data->execute();
+			$data->setFetchMode($fetchmode);
+			$ts = $data->fetchAll();
 
 			foreach($ts as $idx=>$val)
 			{
