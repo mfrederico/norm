@@ -110,6 +110,12 @@ class Norm
 	protected $dsna = '';
 
 	/**
+	 * @var dbType This is the database type
+	 * @access protected
+	 */
+	protected $dbType = '';
+
+	/**
 	 * @var dsn This is the DSN string e.g. mysql:host=localhost;dbname=database
 	 * @access protected
 	 */
@@ -239,7 +245,8 @@ class Norm
 		set_error_handler(array($this,'trigger_my_error'));
 
 		$this->dsn	= $dsn;
-		$this->dsna = self::parseDsn($dsn);
+		list($this->dbType,$str) = explode(':',$this->dsn);
+		$this->dsna = self::parseDsn($str);
 
 		$this->user = $user;
 		$this->pass = $pass;
@@ -262,7 +269,7 @@ class Norm
     {
         try
         {
-            self :: $link = new PDO ( $this->dsn, $this->user, $this->pass, $attr ) ;
+            self::$link = new PDO ( $this->dsn, $this->user, $this->pass, $attr ) ;
         }
         catch (exception $e)
         {
@@ -795,6 +802,8 @@ class Norm
 	public function query($Q,$fetchmode = PDO::FETCH_NUM)
 	{
 		$data = self::$link->prepare($Q);
+		print_pre(self::$link->errorCode());
+		print_pre(self::$link->errorInfo());
 		$data->execute();
 		$data->setFetchMode($fetchmode);
 
@@ -1077,7 +1086,6 @@ class Norm
 	 */
 	private function parseDsn($dsn)
 	{
-		list($dbType,$str) = explode(':',$dsn);
 		$dsnParts = explode(';',$str);
 		foreach($dsnParts as $p)
 		{
@@ -1208,7 +1216,11 @@ class Norm
 		if (!strlen($tableName)) return(false);
 		if (empty($this->tableColumns[$tableName]))
 		{
-			$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$this->prefix}{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
+			if ($this->dbType == 'mysql')
+				$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$this->prefix}{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
+			if ($this->dbType == 'sqlite')
+				$Q="PRAGMA table_info('{$this->prefix}{$tableName}')";
+
 			$ts = $this->query($Q)->results;
 
 			if (empty($ts)) $this->tableColumns[$tableName] = array();
