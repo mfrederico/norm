@@ -3,7 +3,7 @@
 //============================================================+
 // Norm - Not an ORM                 
 //-------------------------------------
-// Version          : 1.2.3
+// Version          : 1.2.4
 // Author           : Matthew Frederico          
 // License          : Whichever GPL works best for you
 //-------------------------------------
@@ -43,7 +43,7 @@
  * @author Matthew Frederico
  * @link http://www.ultrize.com/norm/
  * @license http://www.gnu.org/copyleft/lesser.html LGPL
- * @version 1.2.1
+ * @version 1.2.4
  * @copyright Copyright 2010 Matthew Frederico - ultrize.com
  * @package Norm
  */
@@ -342,7 +342,8 @@ class Norm
 			$tmp = $this->store($obj2,$skipNull);
 			if (isset($obj1->id) && isset($obj2->id))
 			{
-				$Q="INSERT INTO {$this->prefix}{$tableName} SET `{$tableName}_{$var1}`='{$obj1->id}', `{$tableName}_{$var2}`='{$obj2->id}'";
+				//$Q="INSERT INTO {$this->prefix}{$tableName} SET `{$tableName}_{$var1}`='{$obj1->id}', `{$tableName}_{$var2}`='{$obj2->id}'";
+				$Q="INSERT INTO {$this->prefix}{$tableName} (`{$tableName}_{$var1}`,`{$tableName}_{$var2}`) VALUES('{$obj1->id}','{$obj2->id}')";
 				$this->query($Q);
 			}
 			else 
@@ -802,8 +803,8 @@ class Norm
 	public function query($Q,$fetchmode = PDO::FETCH_NUM)
 	{
 		$data = self::$link->prepare($Q);
-		print_pre(self::$link->errorCode());
-		print_pre(self::$link->errorInfo());
+		#print_pre(self::$link->errorCode());
+		#print_pre(self::$link->errorInfo());
 		$data->execute();
 		$data->setFetchMode($fetchmode);
 
@@ -878,9 +879,9 @@ class Norm
 
 		// Should probably turn this entire jalopy into a prepared statement.
 		if (!empty($obj->id))
-			$Q="UPDATE `{$this->prefix}{$tableName}` SET";
+			$Q="UPDATE `{$this->prefix}{$tableName}` ";
 		else
-			$Q="INSERT INTO `{$this->prefix}{$tableName}` SET";
+			$Q="INSERT INTO `{$this->prefix}{$tableName}` ";
 
 		if (!empty($objVars))
 		{
@@ -888,12 +889,17 @@ class Norm
 			{
 				$v = addslashes($v);
 				if ($k == 'id') $WHERE[] = "`{$tableName}_{$k}`='{$v}'";
-				else $SET.=" `{$tableName}_{$k}`='{$v}',";
+				else 
+				{
+					$SET.= " `{$tableName}_{$k}`,";
+					$VALS.='\''.mysql_escape_string($v).'\',';
+				}
 			}
 			$SET = rtrim($SET,',');
+			$VALS = rtrim($VALS,',');
 		}
 
-		$Q .= "{$SET}";
+		$Q .= "({$SET}) VALUES ({$VALS})";
 		if (!empty($WHERE)) $Q .= " WHERE ".join('AND',$WHERE);
 
 		$this->query($Q);
@@ -1189,7 +1195,11 @@ class Norm
 	{
 		if (empty($this->tableList))
 		{
-			$Q="SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='{$this->dsna['dbname']}' AND TABLE_NAME LIKE '{$this->prefix}%'"; 
+			if ($this->dbType == 'mysql')
+				$Q="SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='{$this->dsna['dbname']}' AND TABLE_NAME LIKE '{$this->prefix}%'"; 
+			if ($this->dbType == 'sqlite')
+				$Q="SELECT name FROM sqlite_master WHERE type='table' and name LIKE '{$this->prefix}%'"; 
+
 			$data = self::$link->prepare($Q);
 			$data->execute();
 			$data->setFetchMode($fetchmode);
@@ -1226,11 +1236,12 @@ class Norm
 			if (empty($ts)) $this->tableColumns[$tableName] = array();
 			else
 			{
+				if ($this->dbType=='mysql')		$idx = 0;
+				if ($this->dbType=='sqlite')	$idx = 1;
+
 				// Remove the column prefixes whilst setting the table data
 				foreach($ts as $i=>$val) 
-				{
-					$this->tableColumns[$tableName][] = str_replace($tableName.'_','',$val[0]);
-				}
+					$this->tableColumns[$tableName][] = str_replace($tableName.'_','',$val[$idx]);
 			}
 		}
 		return($this->tableColumns[$tableName]);
@@ -1344,7 +1355,7 @@ class Norm
 				$Q="ALTER TABLE `{$this->prefix}{$tableName}` ADD ".$this->buildType($tableName,$k,$objVars[$k]);
 				$Q = rtrim($Q,',');
 
-				if (strlen($lastCol)) $Q.=" AFTER `{$tableName}_{$lastCol}`";
+				if (strlen($lastCol) && $this->dbType !='sqlite') $Q.=" AFTER `{$tableName}_{$lastCol}`";
 				$this->query($Q);
 				$this->tableColumns[$tableName][] = $k;
 			}
@@ -1353,13 +1364,17 @@ class Norm
 		// Do we need to create new data table?
 		else
 		{
-			$Q="CREATE TABLE IF NOT EXISTS `{$this->prefix}{$tableName}` (`{$tableName}_id` int(11) unsigned not null primary key auto_increment,";
+			if ($this->dbType == 'mysql')
+				$Q="CREATE TABLE IF NOT EXISTS `{$this->prefix}{$tableName}` (`{$tableName}_id` int(11) UNSIGNED NOT NULL PRIMARY KEY auto_increment,";
+			if ($this->dbType == 'sqlite')
+				$Q="CREATE TABLE IF NOT EXISTS `{$this->prefix}{$tableName}` (`{$tableName}_id` INTEGER NOT NULL PRIMARY KEY ASC,";
+
 			foreach($objVars as $k=>$v) 
 			{
 				$Q .= $this->buildType($tableName,$k,$v);
 				$this->tableColumns[$tableName][] = $k;
 			}
-			$Q .= $tableName.'_updated timestamp not null default now())';
+			$Q .= $tableName.'_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)';
 		}
 		return($Q);
 	}
