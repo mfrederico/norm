@@ -79,22 +79,23 @@ print "<pre>\n* Complete dataset";
 print_pre($fullSet);
 
 // Or if I just want the artist only
-$fullSet = $w->get($artist,'*',Norm::SINGLE)->results;
+$artistOnly = $w->get($artist,'*',Norm::SINGLE)->results;
 print "<br />\n* Artist Only *";
-print_pre($fullSet);
+print_pre($artistOnly);
 
 // And that's norm!
 
-// Oh - one more thing: dynamic column creation
-$artist->id			= $fullSet[0]['artist_id'];
-$artist->name		= $fullSet[0]['artist_name'];
-$artist->birthday	= $fullSet[0]['artist_birthday'];
-$artist->updated	= date('Y-m-d H:i:s');
-/// HERE IT GOES!
-$artist->image = 'http://www.infinityoverunity.com/overunitylogo.png';
 
-// purge schema cache:
-unset($w->tableSchema['artist']);
+// Oh - one more thing: dynamic column creation
+$artist = new artist(); // nothing up my sleeve ..
+
+$artist->id			= $artistOnly['artist'][0]['id'];
+$artist->name		= $artistOnly['artist'][0]['name'];
+$artist->birthday	= $artistOnly['artist'][0]['birthday'];
+$artist->updated	= date('Y-m-d H:i:s');
+
+/// Lest add an "image" column:
+$artist->image = 'http://www.infinityoverunity.com/overunitylogo.png';
 
 // Store it and check your DB!
 $w->store($artist);
