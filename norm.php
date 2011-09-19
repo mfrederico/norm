@@ -1396,7 +1396,7 @@ class Norm
 			$diff = $this->compareSchemas($objVars,$dbSchema,array($tableName.'_id',$tableName.'_updated'));
 			foreach($diff as $x=>$k)
 			{
-				if ($k == 'id') continue; // this should already exist!
+				if ($k == 'id' || $k == 'updated') continue; // this should already exist!
 
 				// Should be able to return an array, and run each of these queries .. BUUUT .. for now .. 
 				$Q="ALTER TABLE `{$this->prefix}{$tableName}` ADD ".$this->buildType($tableName,$k,$objVars[$k]);
