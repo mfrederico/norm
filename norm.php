@@ -330,8 +330,10 @@ class Norm
 			if (strlen($Q))
 			{
 				$this->query($Q);
+				if ($this->dbType == 'mysql') $unique = 'unique';
+				if ($this->dbType == 'sqlite') $unique = '';
 				// Create unique index for this lookup
-				$Q = "ALTER TABLE {$this->prefix}{$tableName} ADD unique index({$tableName}_{$var1},{$tableName}_{$var2})";
+				$Q = "ALTER TABLE {$this->prefix}{$tableName} ADD {$unique} index({$tableName}_{$var1},{$tableName}_{$var2})";
 				$this->query($Q);
 			}
 		}
@@ -803,8 +805,12 @@ class Norm
 	public function query($Q,$fetchmode = PDO::FETCH_NUM)
 	{
 		$data = self::$link->prepare($Q);
-		#print_pre(self::$link->errorCode());
-		#print_pre(self::$link->errorInfo());
+		if (!is_object($data)) 
+		{
+			print('<h2>Fail</h2><blockquote>'.$Q.'</blockquote>');
+			print_pre(self::$link->errorInfo());
+			die();
+		}
 		$data->execute();
 		$data->setFetchMode($fetchmode);
 
@@ -829,6 +835,8 @@ class Norm
 	 */
 	public function store($obj,$skipNull = 1)
 	{
+		$b = 0;
+		$updating = false;
 
 		$tableName	= self::getTableName($obj);
 		if (!strlen($tableName)) 
@@ -879,30 +887,44 @@ class Norm
 
 		// Should probably turn this entire jalopy into a prepared statement.
 		if (!empty($obj->id))
-			$Q="UPDATE `{$this->prefix}{$tableName}` ";
+		{
+			$updating=true;
+			$Q = "UPDATE";
+		}
 		else
-			$Q="INSERT INTO `{$this->prefix}{$tableName}` ";
+		{
+			$inserting=true;
+			$Q = "INSERT INTO";
+		}
+
 
 		if (!empty($objVars))
 		{
 			foreach($objVars as $k=>$v)
 			{
-				$v = addslashes($v);
-				if ($k == 'id') $WHERE[] = "`{$tableName}_{$k}`='{$v}'";
+				// If we have an ID present in the vars
+				if ($k == 'id') 
+					$WHERE[] = "`{$tableName}_{$k}`=".self::$link->quote($v);
 				else 
 				{
 					$SET.= " `{$tableName}_{$k}`,";
-					$VALS.='\''.mysql_escape_string($v).'\',';
+					$VALS.= self::$link->quote($v).',';
 				}
 			}
 			$SET = rtrim($SET,',');
 			$VALS = rtrim($VALS,',');
 		}
 
-		$Q .= "({$SET}) VALUES ({$VALS})";
-		if (!empty($WHERE)) $Q .= " WHERE ".join('AND',$WHERE);
+		// Build the query itself
+		$Q .= " `{$this->prefix}{$tableName}` ";
 
-		$this->query($Q);
+		// $b lets us know if we have a "blank" dataset or not .. we don't care to update if it is blank.
+		if (!empty($SET) && !empty($VALS))	{ $b++; $Q .= "({$SET}) VALUES ({$VALS})"; }
+		if (!empty($WHERE))					{ $b++; $Q .= " WHERE ".join('AND',$WHERE);}
+
+		// We are valid for update or insert so lets run our query
+		if ($updating && $b > 1) $this->query($Q);
+		if ($inserting) 		 $this->query($Q);
 
 		if (empty($obj->id))
 		{
