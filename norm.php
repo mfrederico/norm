@@ -330,21 +330,21 @@ class Norm
 			if (strlen($Q))
 			{
 				$this->query($Q);
-				if ($this->dbType == 'mysql') $unique = 'unique';
+				if ($this->dbType == 'mysql') 
+					$Q = "ALTER TABLE {$this->prefix}{$tableName} ADD UNIQUE INDEX({$tableName}_{$var1},{$tableName}_{$var2})";
 				if ($this->dbType == 'sqlite') $unique = '';
+					$Q = "CREATE UNIQUE INDEX IF NOT EXISTS {$this->prefix}{$tableName}_idx ON {$this->prefix}{$tableName} ({$tableName}_{$var1},{$tableName}_{$var2})";
 				// Create unique index for this lookup
-				$Q = "ALTER TABLE {$this->prefix}{$tableName} ADD {$unique} index({$tableName}_{$var1},{$tableName}_{$var2})";
 				$this->query($Q);
 			}
 		}
 
-		// Now store the data into the lookup table for each object
+		// CREATE Lookup table using a 1-n relationship
 		foreach($objArrays as $obj2)
 		{
 			$tmp = $this->store($obj2,$skipNull);
 			if (isset($obj1->id) && isset($obj2->id))
 			{
-				//$Q="INSERT INTO {$this->prefix}{$tableName} SET `{$tableName}_{$var1}`='{$obj1->id}', `{$tableName}_{$var2}`='{$obj2->id}'";
 				$Q="INSERT INTO {$this->prefix}{$tableName} (`{$tableName}_{$var1}`,`{$tableName}_{$var2}`) VALUES('{$obj1->id}','{$obj2->id}')";
 				$this->query($Q);
 			}
@@ -836,7 +836,8 @@ class Norm
 	public function store($obj,$skipNull = 1)
 	{
 		$b = 0;
-		$updating = false;
+		$updating	= false;
+		$inserting	= false;
 
 		$tableName	= self::getTableName($obj);
 		if (!strlen($tableName)) 
@@ -886,17 +887,7 @@ class Norm
 		
 
 		// Should probably turn this entire jalopy into a prepared statement.
-		if (!empty($obj->id))
-		{
-			$updating=true;
-			$Q = "UPDATE";
-		}
-		else
-		{
-			$inserting=true;
-			$Q = "INSERT INTO";
-		}
-
+		if (!empty($obj->id)) $updating=true;
 
 		if (!empty($objVars))
 		{
@@ -907,25 +898,43 @@ class Norm
 					$WHERE[] = "`{$tableName}_{$k}`=".self::$link->quote($v);
 				else 
 				{
-					$SET.= " `{$tableName}_{$k}`,";
-					$VALS.= self::$link->quote($v).',';
+					$SET["{$tableName}_{$k}"] = self::$link->quote($v);
 				}
 			}
-			$SET = rtrim($SET,',');
-			$VALS = rtrim($VALS,',');
 		}
 
 		// Build the query itself
 		$Q .= " `{$this->prefix}{$tableName}` ";
 
 		// $b lets us know if we have a "blank" dataset or not .. we don't care to update if it is blank.
-		if (!empty($SET) && !empty($VALS))	{ $b++; $Q .= "({$SET}) VALUES ({$VALS})"; }
+		if (!empty($SET))
+		{ 
+			foreach($SET as $k=>$v)
+			{
+				$b++; 
+				if (!$updating)
+				{
+					$ISET	.= "`{$k}`,";
+					$IVALS	.= "{$v},";
+				}
+				else $ISET .= "`{$k}`={$v},";
+			}
+
+			if (!$updating)
+			{
+				$ISET  = rtrim($ISET,',');
+				$IVALS = rtrim($IVALS,',');
+				$Q .= "({$ISET}) VALUES ({$IVALS})"; 
+			}
+			else $Q .= 'SET '.rtrim($ISET,',');
+		}
 		if (!empty($WHERE))					{ $b++; $Q .= " WHERE ".join('AND',$WHERE);}
 
 		// We are valid for update or insert so lets run our query
-		if ($updating && $b > 1) $this->query($Q);
-		if ($inserting) 		 $this->query($Q);
+		if ($updating && $b > 1) $this->query('UPDATE'.$Q);
+		if (!$updating) 		 $this->query('INSERT INTO'.$Q);
 
+		// Make sure we return a valid object ID
 		if (empty($obj->id))
 		{
 			$lid = $this->insertId;
@@ -1251,7 +1260,7 @@ class Norm
 			if ($this->dbType == 'mysql')
 				$Q="SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME='{$this->prefix}{$tableName}' AND TABLE_SCHEMA='{$this->dsna['dbname']}'"; 
 			if ($this->dbType == 'sqlite')
-				$Q="PRAGMA table_info('{$this->prefix}{$tableName}')";
+				$Q="PRAGMA table_info({$this->prefix}{$tableName})";
 
 			$ts = $this->query($Q)->results;
 
@@ -1265,7 +1274,9 @@ class Norm
 				foreach($ts as $i=>$val) 
 					$this->tableColumns[$tableName][] = str_replace($tableName.'_','',$val[$idx]);
 			}
+
 		}
+
 		return($this->tableColumns[$tableName]);
 	}
 
@@ -1332,19 +1343,31 @@ class Norm
 	 */
 	private function buildType($table,$col,$v)
 	{
+		$map['mysql']['int']	= "INT NOT NULL";
+		$map['mysql']['float']	= "FLOAT NOT NULL";
+		$map['mysql']['char'] 	= "VARCHAR(255) NOT NULL";
+		$map['mysql']['text'] 	= "TEXT default('')";
+		$map['mysql']['uint']	= "INT UNSIGNED NOT NULL";
+
+		$map['sqlite']['int']	= "INTEGER";
+		$map['sqlite']['float']	= "NUMERIC";
+		$map['sqlite']['char'] 	= "VARCHAR(255)";
+		$map['sqlite']['text'] 	= "TEXT default('')";
+		$map['sqlite']['uint']	= "INTEGER UNSIGNED";
+
 		// We could elaborate this function for a little better datatype accomodation .. 
 		$Q = '';
-		if (is_int($v)) 								$Q .= "`{$table}_{$col}` int not null,";
-		else if (is_float($v)) 							$Q .= "`{$table}_{$col}` float not null,";
+		if (is_int($v)) 								$Q .= "`{$table}_{$col}` {$map[$this->dbType]['int']},";
+		else if (is_float($v)) 							$Q .= "`{$table}_{$col}` {$map[$this->dbType]['float']},";
 		//else if (self::is_datetime($v)) 				$Q .= "`{$table}_{$col}` timestamp not null,";
-		else if (is_string($v) && strlen($v) <= 255)	$Q .= "`{$table}_{$col}` varchar(255) not null,";
-		else if (is_string($v) && strlen($v) > 255)		$Q .= "`{$table}_{$col}` text default(''),";
+		else if (is_string($v) && strlen($v) <= 255)	$Q .= "`{$table}_{$col}` {$map[$this->dbType]['char']},";
+		else if (is_string($v) && strlen($v) > 255)		$Q .= "`{$table}_{$col}` {$map[$this->dbType]['text']},";
 		else if (is_object($v)) 						
 		{
 			$tableName	= self::getTableName($v);
-														$Q .= "`{$tableName}_{$col}` int unsigned not null,";
+														$Q .= "`{$tableName}_{$col}` {$map[$this->dbType]['uint']},";
 		}
-		else $Q .= "`{$table}_{$col}` varchar(255) not null,"; // Kinda generic type / catch all.
+		else $Q .= "`{$table}_{$col}` {$map[$this->dbType]['char']},"; // Kinda generic type / catch all.
 
 		return($Q);
 	}
@@ -1373,6 +1396,8 @@ class Norm
 			$diff = $this->compareSchemas($objVars,$dbSchema,array($tableName.'_id',$tableName.'_updated'));
 			foreach($diff as $x=>$k)
 			{
+				if ($k == 'id') continue; // this should already exist!
+
 				// Should be able to return an array, and run each of these queries .. BUUUT .. for now .. 
 				$Q="ALTER TABLE `{$this->prefix}{$tableName}` ADD ".$this->buildType($tableName,$k,$objVars[$k]);
 				$Q = rtrim($Q,',');
