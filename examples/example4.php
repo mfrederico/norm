@@ -9,9 +9,9 @@
 
 // Include Norm stuff
 include('../norm.php');
-include('../../norm_db_config.php');
-$norm = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
 
+// Create a norm instance - sqlite
+$norm = new Norm("sqlite:costume.sqlite");
 
 // Now lets introduce a new object called Renter and do 
 // some fun stuff .. 
@@ -38,7 +38,7 @@ $costume->id = 2; // <- should be bunny outfit .. right?
 $renter->costume = $costume;
 
 // And this is where the magic happens:
-//$norm->store($renter);
+$norm->store($renter);
 
 // Now lets retrieve our renter object -
 // Lets make it TRICKY:

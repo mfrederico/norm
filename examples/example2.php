@@ -9,10 +9,9 @@
 
 // Include Norm
 include('../norm.php');
-include('../../norm_db_config.php');
 
-// Create a norm instance - mysql for now, more coming later
-$norm = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
+// Create a norm instance - sqlite
+$norm = new Norm("sqlite:costume.sqlite");
 
 // My container object [NOTE: no vars specified - that's OK!]
 class Costume { } 
