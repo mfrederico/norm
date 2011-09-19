@@ -6,9 +6,11 @@ session_start();
 error_reporting(E_ALL & ~E_NOTICE);
 
 include('../norm.php');
-include('../../norm_db_config.php');
 /* I like Norm, Norm is easy and wears a tie. :-) */
-$w = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
+
+// Create a norm instance - sqlite
+$w = new Norm("sqlite:normblog.sqlite");
+
 $w->setTablePrefix('NORM_');
 
 class User
@@ -44,11 +46,18 @@ if (isset($_REQUEST['init']))
 	$p->title	= 'This is an initial post!';
 	$p->body	= 'Norm likes to wear a tie.  It makes him feel friendly!';
 
+
 	// combine them
 	$u->post = $p;
 
 	// Store them
 	$w->store($u);
+
+	// Create an intial "comment"
+	$c = new Comment();
+	$c->comment = 'First comment';
+	$c->post_id	= 1;
+	$w->store($c);
 
 	header("Location: ".$_SERVER['SCRIPT_NAME']);
 }
