@@ -21,12 +21,13 @@ class track
 	var $genre;
 }
 
-// Load DB vars
-include('../../norm_db_config.php');
 
 /* I like Norm, Norm is easy and wears a tie. :-) */
 include('../norm.php');
-$w = new Norm("mysql:host=localhost;dbname={$dbname}",$login,$pass);
+
+// Create a norm instance - sqlite
+$w = new Norm("sqlite:album.sqlite");
+
 
 // Lets create an artist!
 $artist = new artist();
@@ -73,12 +74,12 @@ $artist = new artist();
 $artist->id = 1;
 
 // Get the artist with accompanying album and tracks heirarchy
-$fullSet = $w->get($artist,'*',NORM_FULL)->results;
+$fullSet = $w->get($artist,'*')->results;
 print "<pre>\n* Complete dataset";
 print_pre($fullSet);
 
 // Or if I just want the artist only
-$fullSet = $w->get($artist)->results;
+$fullSet = $w->get($artist,'*',Norm::SINGLE)->results;
 print "<br />\n* Artist Only *";
 print_pre($fullSet);
 
